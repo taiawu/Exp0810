@@ -1,0 +1,236 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# read in dye screening data which is pre-formatted
+paths_processed <- c( 
+                      "../../Exp0615--20190628_BSA_606",
+                      "../../Exp0616--20190628_FKBP12_606",
+                      "../../Exp0618--20190628_OLF_606",
+                      "../../Exp0619--20190702_CP777_PPIE_dye_screen",
+                      "../../Exp0620--20190702_NPAS2_PAS-A_606",
+                      "../../Exp0621--20190702_CP361_PER2_PAS-AB_wt_606",
+                      "../../Exp0622--20190703_CP798_CLOCK_PASB_W362A_606",
+                      "../../Exp0623--20190703_CP_BMAL1_PASB_W427A_606",
+                      "../../Exp0624--2090703_HisPER2_AB_I324N_606",
+                      "../../Exp0625--20190703_CP581_CBPKIX_606",
+                      "../../Exp0626--20190703_CP547_p300_KIX_606",
+                      "../../Exp0627--20190704_HisSUMO_606",
+                      "../../Exp0628--20190704_Hsp10_606",
+                      "../../Exp0629--20190704_HisGB1",
+                      "../../Exp0630--20190704_Hsp60",
+                      "../../Exp0707--20191002_SP120_DDM_buffer_dye_screen_606",
+                      "../../Exp0710--20191001_nucleosome_dye_screen_606",
+                      "../../Exp0723--20191016_retinoic_acid_receptor_SP095_dye_screen_715",
+                      "../../Exp0727--20191018_Snf2h_dye_screen_715",
+                      "../../Exp0729--20191019_tau_mi_diamond_SP118_dye_screen_715",
+                      "../../Exp0730--20191019_tau_ms_diamond_SP117_dte_screen_715",
+                      "../../Exp0731--20191017_OGlcNacTransferase_SP029_dye_screen_715",
+                      "../../Exp0732--20191019_601_DNA_SP128_dye_screen_715",
+                      "../../Exp0734--20191111_tau_mi_diamond_SP118_1uM_dye_screen_715"
+                      ) %>%
+                       map(paste0,  "/intermediate") %>%
+                       unlist() %>%
+                       as.vector()
+
+read_processed_screen <- function(paths_processed) {
+  file_path <- dir(paths_processed, full.names = T, pattern = "buffer_and_protein_raw_data_m.rds")
+  screen_name <- substr(paths_processed, 4+3, 10+3)
+  print(file_path)
+
+  
+ df <-  file_path %>%
+        readRDS() %>%
+        mutate(screen = rep(screen_name, times = nrow(.)),
+               Temperature = .$Temperature %>% as.numeric())
+        
+}
+
+# read all of the screens which were pre-processed in the final version
+df_proc <- map( paths_processed, # for all paths 
+                read_processed_screen  ) %>%
+               bind_rows() # combine into a single dataframe
+
+# write_rds(df_proc, "Exp0798--20200228_all_processed_screens_v1_duplicates_removed.rds")
+```
+
+
+```{r}
+# additional files
+# under Erin_Thompson_GS/
+# Exp0671--20190805_ErinPoss_GS_WT_dye_screen_606
+# Exp0672--20190805_ErinPoss_GS_R341C_dye_screen_606
+# Exp0673--20190806_ErinPoss_GS_324S_dye_screen_606
+# Exp0674--20190806_ErinPoss_GS_324C_dye_screen_606
+
+# under MJKlevitt_HSPB5/TW_analyzed/
+#Exp0595--20190607_MJKlevitt_ACD_domain_protein6_dye_screen_559a
+# Exp0596--20190609_MJKlevitt_H104-FL-B5-pre-inc_protein5_dye_screen_559a
+# Exp0598--20190609_MJKlevitt_FL-B5-pre-inc_protein2_dye_screen_559a
+# Exp0610_20190618_B5_with_zinc_MKLevitt
+# Exp0701--20190913_MJKlevitt_B5-pre-inc_phosphomim_protein_4_dye_screen_606
+
+
+## under just data/Exp0481--20190115_library_glycerol
+# Exp0530--20190306_DMSO_ACN_dyes_in_library
+# Exp0541--20190320_ACN_abs_fluor
+
+```
+
+
+```{r}
+# add the data from Erin Thompson and Maria Janowska's work
+paths_processed2 <- c("../../Erin_Thompson_GS/Exp0671--20190805_ErinPoss_GS_WT_dye_screen_606",
+                      "../../Erin_Thompson_GS/Exp0672--20190805_ErinPoss_GS_R341C_dye_screen_606",
+                      "../../Erin_Thompson_GS/Exp0673--20190806_ErinPoss_GS_324S_dye_screen_606",
+                      "../../Erin_Thompson_GS/Exp0674--20190806_ErinPoss_GS_324C_dye_screen_606",
+                      "../../MJKlevitt_HSPB5/TW_analyzed/Exp0595--20190607_MJKlevitt_ACD_domain_protein6_dye_screen_559a",
+                      "../../MJKlevitt_HSPB5/TW_analyzed/Exp0596--20190609_MJKlevitt_H104-FL-B5-pre-inc_protein5_dye_screen_559a",
+                      "../../MJKlevitt_HSPB5/TW_analyzed/Exp0598--20190609_MJKlevitt_FL-B5-pre-inc_protein2_dye_screen_559a",
+                      "../../MJKlevitt_HSPB5/TW_analyzed/Exp0610_20190618_B5_with_zinc_MKLevitt",
+                      "../../MJKlevitt_HSPB5/TW_analyzed/Exp0701--20190913_MJKlevitt_B5-pre-inc_phosphomim_protein_4_dye_screen_606"
+                      ) %>%
+                      map(paste0,  "/intermediate") %>%
+                      unlist() %>%
+                      as.vector()
+
+screen_names2 <- c( "Exp0671",
+                    "Exp0672",
+                    "Exp0673",
+                    "Exp0674",
+                    "Exp0595",
+                    "Exp0596",
+                    "Exp0598",
+                    "Exp0610",
+                    "Exp0701"
+                    )
+
+read_processed_screen2 <- function(paths_processed, screen_name) {
+  file_path <- dir(paths_processed, full.names = T, pattern = "buffer_and_protein_raw_data_m.rds")
+ # screen_name <- substr(paths_processed, 4+3, 10+3)
+  print(file_path)
+
+  
+ df <-  file_path %>%
+        readRDS() %>%
+        mutate(screen = rep(screen_name, times = nrow(.)),
+               Temperature = .$Temperature %>% as.numeric())
+}
+
+clean_dye_names <- function( vec ) {
+  vec %>%
+    gsub( "S.O.500X|SO500X", "SO5X", . ) %>% # low concentration SYPRO
+    gsub( "S.O.5000X", "SO50X", . ) %>% # high concentration SYPRO, from old screens
+    str_replace_all(. , "-", "") # remove hyphens from the names 
+}
+
+# read all of the screens which were pre-processed in the final version
+df_proc2 <- map2( paths_processed2, 
+                  screen_names2, #dir(paths_processed[[1]], full.names = T, pattern = "buffer_and_protein_raw_data_m.rds"),
+                  read_processed_screen2 ) %>% 
+            bind_rows()
+
+df_proc_combined <- bind_rows( df_proc, 
+                               df_proc2 ) %>%
+                    mutate(dye = clean_dye_names(.$dye))
+```
+
+```{r}
+# # combine the data, clean up the dye names, and remake all columns which use the use dye names
+df_proc_combined <- bind_rows( df_proc,
+                               df_proc2 ) %>%
+                    mutate(dye = clean_dye_names(.$dye)) %>%
+                    select(-c("dye_conc", "dye_conc_type", "dye_conc_type_channel")) %>% # drop these, which reflect the old dye names
+                    unite("dye_conc", c(dye, conc), remove = FALSE) %>%
+                    unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
+                    unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE)
+
+write_rds(df_proc_combined, "Exp0810--20200402_processed_screens_uncleaned_1.rds")
+# df_proc_combined <- readRDS("Exp0798--20200402_processed_screens_uncleaned_1.rds")  
+# 
+# # some conformations of data quality and accuracy
+# df_proc_combined$screen %>% table() %>% write.csv(.,"quality_checks/Exp0798_confirmation_of_equal_rows_screen_table_pre_filter.csv") # all 
+# df_proc_combined$well %>% table() %>% write.csv(.,"quality_checks/Exp0798_confirmation_of_equal_rows_wells_table_pre_filter.csv") # all 277720
+# df_proc_combined$Temperature %>% table() %>% write.csv(.,"quality_checks/Exp0798_confirmation_of_equal_rows_Temperature_table_pre_filter.csv") # all 152064
+# df_proc_combined$channel %>% table() %>% write.csv(.,"quality_checks/Exp0798_confirmation_of_equal_rows_channel_table_pre_filter.csv") # all 1774080
+# df_proc_combined$dye %>% table() %>% write.csv(.,"quality_checks/Exp0798_dye_frequency_table_pre_filter.csv") # somewhat varied, as expected
+```
+
+```{r}
+# # remove the DMOS and Empty columns. Note that not all wells will have the same number of datasets now
+df_proc_clean <- df_proc_combined %>%
+                 filter(! dye %in% c("DMSO", "Empty"))
+write_rds(df_proc_clean, "Exp0810--20200402_cleaned_processed_screens_1.rds")
+# df_proc_clean <- readRDS("Exp0798--20200402_cleaned_processed_screens_1.rds")  
+
+# # some conformations of data quality and accuracy
+# df_proc_clean$screen %>% table() %>% write.csv(.,"quality_checks/Exp0798_confirmation_of_equal_rows_screen_table_post_filter.csv") # all 
+# df_proc_clean$well %>% table() %>% write.csv(.,"quality_checks/Exp0798_confirmation_of_equal_rows_wells_table_post_filter.csv") # all 277720
+# df_proc_clean$Temperature %>% table() %>% write.csv(.,"quality_checks/Exp0798_confirmation_of_equal_rows_Temperature_table_post_filter.csv") # all 152064
+# df_proc_clean$channel %>% table() %>% write.csv(.,"quality_checks/Exp0798_confirmation_of_equal_rows_channel_table_post_filter.csv") # all 1774080
+# df_proc_clean$dye %>% table() %>% write.csv(.,"quality_checks/Exp0798_dye_frequency_table_post_filter.csv") # somewhat varied, as expected
+```
+
+
+
+```{r}
+process_old_screen <- function( paths_processed ) {
+  top_prot <- dir(paths_processed, full.names = T, pattern = "topprotein_smoothed.csv")
+  bottom_prot <- dir(paths_processed, full.names = T, pattern = "bottomprotein_smoothed.csv")
+  top_buff <- dir(paths_processed, full.names = T, pattern = "topbackground_smoothed.csv")
+  bottom_buff <- dir(paths_processed, full.names = T, pattern = "bottombackground_smoothed.csv")
+  
+}
+
+clean_old_dye_names <- function( vec ) {
+  vec %>%
+    gsub( "S.O.low", "SO5X", . ) %>% # low concentration SYPRO
+    gsub( "S.O.high", "SO50X", . ) %>% # high concentration SYPRO, from old screens
+    str_replace_all(. , "-", "") # remove hyphens from the names 
+}
+# older dye screens, which need to be processed in various ways 
+df508 <- read_csv("../../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_topprotein_smoothed.csv")
+df508_b <- read_csv("../../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_bottombackground_smoothed.csv")
+df508 
+
+df508_b
+```
+
+```{r}
+df_508_p <- df508 %>%
+            mutate(Temperature = c(25:94)) %>%
+            select(-X1) %>%
+            pivot_longer(-Temperature, names_to = "raw_var", values_to = "value") 
+            
+df_508_p2 <- df_508_p %>%
+             separate(raw_var, c("dye", "raw_var2"), ":") %>%
+             separate(raw_var2, c("conc", "channel"), " ") %>%
+             mutate(conc = gsub("uM", "", .$conc) %>% as.numeric,
+                    dye = clean_old_dye_names(.$dye)) %>%
+  
+            
+             
+df_508_p2 
+```
+
+
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
