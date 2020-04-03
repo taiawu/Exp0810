@@ -154,7 +154,7 @@ df_proc_combined <- bind_rows( df_proc,
                     unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
                     unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE)
 
-write_rds(df_proc_combined, "Exp0810--20200402_processed_screens_uncleaned_1.rds")
+#write_rds(df_proc_combined, "Exp0810--20200402_processed_screens_uncleaned_1.rds")
 # df_proc_combined <- readRDS("Exp0798--20200402_processed_screens_uncleaned_1.rds")  
 # 
 # # some conformations of data quality and accuracy
@@ -169,8 +169,8 @@ write_rds(df_proc_combined, "Exp0810--20200402_processed_screens_uncleaned_1.rds
 # # remove the DMOS and Empty columns. Note that not all wells will have the same number of datasets now
 df_proc_clean <- df_proc_combined %>%
                  filter(! dye %in% c("DMSO", "Empty"))
-write_rds(df_proc_clean, "Exp0810--20200402_cleaned_processed_screens_1.rds")
-# df_proc_clean <- readRDS("Exp0798--20200402_cleaned_processed_screens_1.rds")  
+# write_rds(df_proc_clean, "Exp0810--20200402_cleaned_processed_screens_1.rds")
+df_proc_clean <- readRDS("Exp0810--20200402_cleaned_processed_screens_1.rds")  
 
 # # some conformations of data quality and accuracy
 # df_proc_clean$screen %>% table() %>% write.csv(.,"quality_checks/Exp0798_confirmation_of_equal_rows_screen_table_post_filter.csv") # all 
@@ -182,13 +182,14 @@ write_rds(df_proc_clean, "Exp0810--20200402_cleaned_processed_screens_1.rds")
 
 
 
+
+
 ```{r}
 process_old_screen <- function( paths_processed ) {
   top_prot <- dir(paths_processed, full.names = T, pattern = "topprotein_smoothed.csv")
   bottom_prot <- dir(paths_processed, full.names = T, pattern = "bottomprotein_smoothed.csv")
   top_buff <- dir(paths_processed, full.names = T, pattern = "topbackground_smoothed.csv")
   bottom_buff <- dir(paths_processed, full.names = T, pattern = "bottombackground_smoothed.csv")
-  
 }
 
 clean_old_dye_names <- function( vec ) {
@@ -198,14 +199,27 @@ clean_old_dye_names <- function( vec ) {
     str_replace_all(. , "-", "") # remove hyphens from the names 
 }
 # older dye screens, which need to be processed in various ways 
-df508 <- read_csv("../../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_topprotein_smoothed.csv")
-df508_b <- read_csv("../../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_bottombackground_smoothed.csv")
+df508 <- read_csv("../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_topprotein_smoothed.csv")
+df508_b <- read_csv("../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_bottombackground_smoothed.csv")
 df508 
 
 df508_b
 ```
 
+
+
 ```{r}
+dye_to_well <- read.csv("../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_topdye_to_well_mapping_confirmation.csv", header = TRUE) %>%
+              .[-1,] %>%
+              set_names("well_channel", "dye_channel") %>%
+              separate(well_channel, c("well", "channel"), remove = FALSE) %>%
+              separate(dye_channel, c("dye", "channel"), sep = ":", remove = FALSE) %>%
+              mutate(dye = clean_old_dye_names(.$dye)) %>%
+              select(-channel)
+dye_to_well
+
+df508 %>% head()
+
 df_508_p <- df508 %>%
             mutate(Temperature = c(25:94)) %>%
             select(-X1) %>%
@@ -215,12 +229,102 @@ df_508_p2 <- df_508_p %>%
              separate(raw_var, c("dye", "raw_var2"), ":") %>%
              separate(raw_var2, c("conc", "channel"), " ") %>%
              mutate(conc = gsub("uM", "", .$conc) %>% as.numeric,
-                    dye = clean_old_dye_names(.$dye)) %>%
-  
-            
-             
-df_508_p2 
+                    dye = clean_old_dye_names(.$dye))
 ```
+
+```{r}
+dye_to_well <- read.csv("../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_topdye_to_well_mapping_confirmation.csv", header = TRUE) %>%
+              .[-1,] %>%
+              set_names("well_channel", "raw_var") %>%
+              separate(well_channel, c("well", "channel"), remove = TRUE) %>%
+              separate(raw_var, c("dye", "channel"), sep = ":", remove = FALSE) %>%
+              mutate(dye = clean_old_dye_names(.$dye)) %>%
+              select(-channel) 
+dye_to_well
+
+df_508_p <- df508 %>%
+            mutate(Temperature = c(25:94)) %>%
+            select(-X1) %>%
+            pivot_longer(-Temperature, names_to = "raw_var", values_to = "value")  %>%
+            left_join(., dye_to_well, by = "raw_var")
+
+df_508_p %>% nrow()
+df_508_p
+
+
+df_508_p  %>% head()
+```
+
+```{r}
+filepath <-"../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_topdye_to_well_mapping_confirmation.csv"
+
+dye_to_layout <- function( filepath ) {
+           read_csv(filepath) %>%
+              .[-1,] %>%
+              set_names("well_channel", "raw_var") %>%
+              separate(well_channel, c("well", "channel"), remove = TRUE) %>%
+              separate(raw_var, c("dye", "channel"), sep = ":", remove = FALSE) %>%
+              mutate(dye = clean_old_dye_names(.$dye)) %>%
+              separate(channel, c("conc", "channel"), sep = " ", remove = TRUE) %>%
+              mutate(conc = gsub("uM", "", .$conc) %>% as.numeric) %>%
+              unite("variable", c(well, channel), sep = ":", remove = FALSE) %>%
+              unite("dye_conc", c(dye, conc), remove = FALSE) %>%  
+              mutate(column = parse_number(.$well),
+                     row = str_sub(.$well, start = 1L, end = 1L),
+                     channel_f = factor(.$channel, levels = c("FAM", "JOE", "TAMRA", "ROX", "Cy5", "Cy5.5")))
+}
+
+dye_to_well <- dye_to_layout( filepath )
+
+data_filepath <- "../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate/_Exp0508_topprotein_smoothed.csv"
+
+format_half_screen <- function(filepath, screen_type, screen_num, dye_to_well) {
+            read_csv(filepath) %>%
+                mutate(Temperature = c(25:94)) %>%
+                select(-X1) %>%
+                pivot_longer(-Temperature, names_to = "raw_var", values_to = "value")  %>%
+                left_join(., dye_to_well, by = "raw_var") %>% 
+                select( -raw_var )%>%
+                mutate(type = rep(screen_type, times = nrow(.)))  %>%
+                unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
+                unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE) %>%
+                mutate(screen = rep(screen_num, times = nrow(.)))
+}
+
+df_test <- format_half_screen(filepath = data_filepath, 
+                             screen_type = "protein", 
+                             screen_num = "Exp0508", 
+                             dye_to_well = dye_to_well) 
+
+df_test %>% head()
+df_test %>% nrow()
+```
+
+
+```{r}
+df_508_p3 <- df_508_p2 %>%
+              mutate(type = rep("protein", times = nrow(.))) %>%
+              unite("variable", c(well, channel), sep = ":", remove = FALSE) %>%
+              unite("dye_conc", c(dye, conc), remove = FALSE) %>%
+              unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
+              unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE) %>%
+              mutate(column = parse_number(.$well),
+                     row = str_sub(.$well, start = 1L, end = 1L),
+                     channel_f = factor(.$channel, levels = c("FAM", "JOE", "TAMRA", "ROX", "Cy5", "Cy5.5")),
+                     screen = rep("screen_num", times = nrow(.)))
+
+df_proc_clean[!names(df_proc_clean) %in% names(df_508_p3)]
+```
+```{r}
+
+
+```
+
+
+
+```{r}
+```
+
 
 
 
