@@ -288,12 +288,142 @@ process_old_screen <- function( paths_processed, screen_num ) {
                                                  screen_type = "buffer", 
                                                  screen_num = screen_num, 
                                                  dye_to_well = dye_mapping_bottom)
+    
+    #xprint(screen_num)
 
+    # i'm not proud of this function...
     bind_rows(df_top_prot, df_bottom_prot, df_top_buff, df_bottom_buff)
+    
 }
 
-df_508 <- process_old_screen("../old_dye_screens_Exp0405_to_Exp0508/Exp0508--20190204_HIP/intermediate", "Exp0508")
+exp_nums_old <- c(
+                  "Exp0486",
+                  "Exp0497",
+                  "Exp0503",
+                  "Exp0504",
+                 # "Exp0507",
+                  "Exp0506",
+                  "Exp0508"
+                  )
+
+screen_paths_old <- c("Exp0486--20190118_Jdomain",
+                      "Exp0497--20190125_Hsp60",
+                      "Exp0503--20190131_FKBP12",
+                      "Exp0504--20190131_light_chain",
+                      #"Exp0507--20190204_Hsc70",
+                      "Exp0506--20190203_Bag2",
+                      "Exp0508--20190204_HIP") %>% 
+                          map( ., function(x) {paste0("../old_dye_screens_Exp0405_to_Exp0508/",x)}) %>%
+                          unlist() %>%
+                          as.vector() %>%
+                          map( ., paste0,  "/intermediate") %>%
+                          unlist() %>%
+                          as.vector() 
+old_screen_df <- map2(screen_paths_old, exp_nums_old, process_old_screen) %>%
+                    bind_rows()
+# nrow(old_screen_df)
+# length(old_screen_df)
+# head(old_screen_df)
+#write_rds(old_screen_df, "Exp0810--20200402_processed_old_screens_1.rds")
 ```
+```{r}
+# Exp0507 weirdly had just the top protein melted. Made this new function to handle Exp0507 on its own
+process_old_screen_Exp507 <- function( paths_processed, screen_num ) {
+  # make the dye layouts for the top and bottom
+  dye_mapping_top <- dir(paths_processed, full.names = T, pattern = "topdye_to_well_mapping_confirmation.csv") %>% dye_to_layout( . ) 
+  dye_mapping_bottom <- dir(paths_processed, full.names = T, pattern = "bottomdye_to_well_mapping_confirmation.csv") %>% dye_to_layout( . )
+
+df_top_prot <- dir(paths_processed_507, full.names = T, pattern = "topprotein_smoothed.csv") %>%
+  read.csv(. , header = FALSE) %>%
+  t() %>%
+  as_tibble() %>%
+  mutate(Temperature = c(24:94)) %>%
+  set_names(.[1,]) %>%
+  .[-1,]  %>%
+  rename(Temperature = "24") %>%
+                pivot_longer(-Temperature, names_to = "raw_var", values_to = "value")  %>%
+  mutate(Temperature = .$Temperature %>% as.numeric()) %>%
+                left_join(., dye_to_well, by = "raw_var") %>%
+                select( -raw_var )%>%
+                mutate(type = rep("protein", times = nrow(.)))  %>%
+                unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
+                unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE) %>%
+                mutate(screen = rep("Exp0507", times = nrow(.)))
+  
+top_prot_507
+#     
+    df_bottom_prot <- dir(paths_processed, full.names = T, pattern = "bottomprotein_smoothed.csv") %>%
+                        format_half_screen(filepath = .,
+                                 screen_type = "protein",
+                                 screen_num = screen_num,
+                                 dye_to_well = dye_mapping_bottom)
+
+    df_top_buff <- dir(paths_processed, full.names = T, pattern = "topbackground_smoothed.csv") %>%
+                      format_half_screen(filepath = .,
+                                                 screen_type = "buffer",
+                                                 screen_num = screen_num,
+                                                 dye_to_well = dye_mapping_top)
+
+    df_bottom_buff <- dir(paths_processed, full.names = T, pattern = "bottombackground_smoothed.csv") %>%
+                      format_half_screen(filepath = .,
+                                                 screen_type = "buffer",
+                                                 screen_num = screen_num,
+                                                 dye_to_well = dye_mapping_bottom)
+
+     bind_rows(df_top_prot, df_bottom_prot, df_top_buff, df_bottom_buff)
+    
+}
+df_Exp0507 <- process_old_screen_Exp507("../old_dye_screens_Exp0405_to_Exp0508/Exp0507--20190204_Hsc70/intermediate", "Exp0507")
+```
+
+
+
+```{r}
+format_half_screen <- function(filepath, screen_type, screen_num, dye_to_well) {
+            read_csv(filepath) %>%
+                mutate(Temperature = c(25:94)) %>%
+                select(-X1) %>%
+                pivot_longer(-Temperature, names_to = "raw_var", values_to = "value")  %>%
+                left_join(., dye_to_well, by = "raw_var") %>% 
+                select( -raw_var )%>%
+                mutate(type = rep(screen_type, times = nrow(.)))  %>%
+                unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
+                unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE) %>%
+                mutate(screen = rep(screen_num, times = nrow(.)))
+}
+
+Exp0468_prot_names <- read_csv("../old_dye_screens_Exp0405_to_Exp0508/Exp0468--20181205_eIF2B_with_ISRIB/intermediate/Exp0468_protein_smoothed.csv") %>% names()
+Exp0468_prot_names
+paths_processed_468 <- "../old_dye_screens_Exp0405_to_Exp0508/Exp0468--20181205_eIF2B_with_ISRIB/intermediate/"
+
+Exp0468_dye_to_well <- dir(paths_processed_468, full.names = T, pattern = "topdye_to_well_mapping_confirmation.csv") %>% dye_to_layout( . )
+
+format_half_screen(paths_processed_468,
+                   "protein",
+                   "Exp0468",
+                   Exp0468_dye_to_well
+                   )
+
+# eIF2B and light chain screens were both 
+df_468_noISRIB <- read_csv("../old_dye_screens_Exp0405_to_Exp0508/Exp0468--20181205_eIF2B_with_ISRIB/intermediate/Exp0468_protein_smoothed.csv") %>% 
+                  pivot_longer(-Temperature, names_to = "raw_var", values_to = "value")  %>%
+  mutate(Temperature = .$Temperature %>% as.numeric()) %>%
+                left_join(., dye_to_well, by = "raw_var") %>%
+                select( -raw_var )%>%
+                mutate(type = rep("protein", times = nrow(.)))  %>%
+                unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
+                unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE) %>%
+                mutate(screen = rep("Exp0507", times = nrow(.)))
+
+df_468_noISRIB
+dir(paths_processed_468, full.names = T, pattern = "dye_to_well_mapping_confirmation.csv")
+```
+```{r}
+
+```
+
+
+
 
 
 
