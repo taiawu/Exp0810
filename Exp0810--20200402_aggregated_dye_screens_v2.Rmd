@@ -188,10 +188,10 @@ screen_names <- c( "Exp0650--His_NusA",
                       "Exp0701--B5-pre-inc_phosphomim_protein_4"
                    )
 
-### save all of the processed files, individually
-# map2( paths_processed, # for all paths 
-#                  screen_names,
-#                  save_processed_screen )
+## save all of the processed files, individually
+map2( paths_processed, # for all paths
+                 screen_names,
+                 save_processed_screen )
 ```
 
 Processing of old screens, which are variously formatted and need a bit more picking through
@@ -394,18 +394,7 @@ write_rds( df_eIF2B_with_ISRIB , paste0("individual_processed_screens/", "Exp046
   
 ```
 
-```{r}
-# read in three screens which I had forgotten to perform earlier
-HisNusA <- map2( paths_eIF2B, 
-                  screen_names_eIf2B, #dir(paths_processed[[1]], full.names = T, pattern = "buffer_and_protein_raw_data_m.rds"),
-                  read_processed_screen2 ) %>% 
-                  bind_rows() %>%
-                  mutate(dye = clean_dye_names(.$dye)) %>%
-                  select(-c("dye_conc", "dye_conc_type", "dye_conc_type_channel")) %>% # drop these, which reflect the old dye names
-                  unite("dye_conc", c(dye, conc), remove = FALSE) %>%
-                  unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
-                  unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE)
-```
+
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
 
