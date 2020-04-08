@@ -52,13 +52,11 @@ read_and_plot <- function(file_path, title) { # will this read a bunch of anonym
 }
 ```
 
+Test out the scripts on a single screen
 ```{r}
 # try this individually once
 read_and_plot("individual_processed_screens/Exp0671--GS_WT-processed.rds", "Exp0671--GS_WT")
-```
 
-
-```{r}
 # try just the plotting individually once 
 df_test <- readRDS("individual_processed_screens/Exp0671--GS_WT-processed.rds")
 
@@ -78,12 +76,12 @@ all_screen_names <- all_screens  %>%
 # map2(all_screens, all_screen_names, read_and_plot)
 ```
 
+Read in all of the screens into a single list
 ```{r}
-# read in all of the screens into a single list
 # all_screen_list <- map(all_screens, readRDS)
 # write_rds( all_screen_list, "aggregated_screens/Exp0810--all_screens_list.rds")
 ```
-
+Combine into a single df
 ```{r}
 # combine into a single df
 # all_screens_df <- all_screen_list %>%
@@ -135,311 +133,7 @@ facet_wrap_by_dye <- function(dye_in, df_melt) {
 #facet_wrap_by_dye(all_screens_df_filt, "A003") -> p_test_save
 lapply(all_dyes, facet_wrap_by_dye, df_melt = all_screens_df_filt )
 
-
-# [1] "SO5X"
-# [1] "C009"
-# [1] "C010"
-# [1] "C011"
-# [1] "C012"
-# [1] "C013"
-# [1] "C014"
-# [1] "C015"
-# [1] "C016"
-# [1] "C017"
-# [1] "C018"
-# [1] "C001"
-# [1] "C019"
-# [1] "C020"
-# [1] "C021"
-# [1] "C022"
-# [1] "T004"
-# [1] "C002"
-# [1] "C003"
-# [1] "C004"
-# [1] "C005"
-# [1] "C006"
-# [1] "C007"
-# [1] "C008"
-# [1] "TW383"
-# [1] "MWC001"
-# [1] "MWC002"
-# [1] "MWC003"
-# [1] "MWC004"
-# [1] "MWC005"
-# [1] "MWC006"
-# [1] "MWC007"
-# [1] "MWC008"
-# [1] "MWC009"
-# [1] "MWC010"
-# [1] "TW384"
-# [1] "MWC011"
-# [1] "MWC012"
-# [1] "MWC013"
-# [1] "MWC014"
-# [1] "MWC015"
-# [1] "TW385"
-# [1] "TW392"
-# [1] "TW495"
-# [1] "TW408"
-# [1] "TW409"
-# [1] "TW418"
-# [1] "TW419"
-# [1] "MWC016"
-# [1] "MWC025"
-# [1] "MWC026"
-# [1] "MWC027"
-# [1] "MWC028"
-# [1] "MWC029"
-# [1] "MWC030"
-# [1] "MWC031"
-# [1] "MWC032"
-# [1] "MWC033"
-# [1] "MWC034"
-# [1] "MWC017"
-# [1] "MWC035"
-# [1] "MWC036"
-# [1] "MWC037"
-# [1] "MWC038"
-# [1] "MWC039"
-# [1] "MWC018"
-# [1] "MWC019"
-# [1] "MWC020"
-# [1] "MWC021"
-# [1] "MWC022"
-# [1] "MWC023"
-# [1] "MWC024"
-# [1] "MWC040"
-# [1] "MWC049"
-# [1] "MWC050"
-# [1] "MWC051"
-# [1] "MWC052"
-# [1] "MWC053"
-# [1] "MWC054"
-# [1] "MWC055"
-# [1] "MWC056"
-# [1] "MWC057"
-# [1] "MWC058"
-# [1] "MWC041"
-# [1] "MWC059"
-# [1] "MWC060"
-# [1] "MWC061"
-# [1] "MWC062"
-# [1] "MWC042"
-# [1] "MWC043"
-# [1] "MWC044"
-# [1] "MWC045"
-# [1] "MWC046"
-# [1] "MWC047"
-# [1] "MWC048"
-# [1] "A011"
-# [1] "A012"
-# [1] "A013"
-# [1] "A014"
-# [1] "A015"
-# [1] "A016"
-# [1] "A018"
-# [1] "A019"
-# [1] "A020"
-# [1] "A003"
-# [1] "A021"
-# [1] "A022"
-# [1] "A023"
-# [1] "A024"
-# [1] "A025"
-# [1] "A004"
-# [1] "A005"
-# [1] "A006"
-# [1] "A007"
-# [1] "A008"
-# [1] "A009"
-# [1] "A010"
-# [1] "L001"
-# [1] "L010"
-# [1] "L011"
-# [1] "L012"
-# [1] "L013"
-# [1] "L014"
-# [1] "L015"
-# [1] "L016"
-# [1] "L017"
-# [1] "L018"
-# [1] "L019"
-# [1] "L002"
-# [1] "L020"
-# [1] "L021"
-# [1] "L022"
-# [1] "L023"
-# [1] "L024"
-# [1] "L003"
-# [1] "L004"
-# [1] "L005"
-# [1] "L006"
-# [1] "L007"
-# [1] "L008"
-# [1] "L009"
-# [1] "L025"
-# [1] "L034"
-# [1] "L035"
-# [1] "L036"
-# [1] "L037"
-# [1] "L038"
-# [1] "L039"
-# [1] "L040"
-# [1] "L041"
-# [1] "L042"
-# [1] "L043"
-# [1] "L026"
-# [1] "L044"
-# [1] "L045"
-# [1] "L046"
-# [1] "L047"
-# [1] "L048"
-# [1] "L027"
-# [1] "L028"
-# [1] "L029"
-# [1] "L030"
-# [1] "L031"
-# [1] "L032"
-# [1] "L033"
-# [1] "L049"
-# [1] "L058"
-# [1] "L059"
-# [1] "L060"
-# [1] "L061"
-# [1] "L062"
-# [1] "L063"
-# [1] "L064"
-# [1] "L065"
-# [1] "L066"
-# [1] "L067"
-# [1] "L050"
-# [1] "L068"
-# [1] "L069"
-# [1] "L070"
-# [1] "L071"
-# [1] "L072"
-# [1] "L051"
-# [1] "L052"
-# [1] "L053"
-# [1] "L054"
-# [1] "L055"
-# [1] "L056"
-# [1] "L057"
-# [1] "L073"
-# [1] "L082"
-# [1] "L083"
-# [1] "L084"
-# [1] "L085"
-# [1] "L086"
-# [1] "L087"
-# [1] "L088"
-# [1] "L089"
-# [1] "L090"
-# [1] "L091"
-# [1] "L074"
-# [1] "L092"
-# [1] "L093"
-# [1] "L094"
-# [1] "L095"
-# [1] "L096"
-# [1] "L075"
-# [1] "L076"
-# [1] "L077"
-# [1] "L078"
-# [1] "L079"
-# [1] "L080"
-# [1] "L081"
-# [1] "L097"
-# [1] "L106"
-# [1] "L107"
-# [1] "L108"
-# [1] "MWA005"
-# [1] "MWA006"
-# [1] "MWA007"
-# [1] "MWA008"
-# [1] "MWA010"
-# [1] "MWA021"
-# [1] "MWB007"
-# [1] "L098"
-# [1] "MWB008"
-# [1] "MWB009"
-# [1] "MWB010"
-# [1] "MWB011"
-# [1] "MWB012"
-# [1] "L099"
-# [1] "L100"
-# [1] "L101"
-# [1] "L102"
-# [1] "L103"
-# [1] "L104"
-# [1] "L105"
-# [1] "MWB013"
-# [1] "MWB014"
-# [1] "MWB015"
-# [1] "MWB019"
-# [1] "AW131"
-# [1] "AW132"
-# [1] "AW134"
-# [1] "MWA001"
-# [1] "MWA017"
-# [1] "MWA018"
-# [1] "MWA020"
-# [1] "MWB001"
-# [1] "MWB002"
-# [1] "MWB003"
-# [1] "MWB004"
-# [1] "MWB005"
-# [1] "MWB006"
-# [1] "MWB016"
-# [1] "MWA002"
-# [1] "MWB017"
-# [1] "W003"
-# [1] "W032"
-# [1] "W086"
-# [1] "W094"
-# [1] "MWA003"
-# [1] "MWA004"
-# [1] "MWA011"
-# [1] "MWA013"
-# [1] "MWA014"
-# [1] "MWA015"
-# [1] "MWA016"
-# [1] "W097"
-# [1] "T010"
-# [1] "T011"
-# [1] "T014"
-# [1] "T016"
-# [1] "T027"
-# [1] "TX019"
-# [1] "TX020"
-# [1] "TX021"
-# [1] "TX022"
-# [1] "TX023"
-# [1] "WD01"
-# [1] "TX024"
-# [1] "TX011"
-# [1] "TX012"
-# [1] "TX014"
-# [1] "TX017"
-# [1] "WD02"
-# [1] "WD03"
-# [1] "WD04"
-# [1] "T001"
-# [1] "T002"
-# [1] "T008"
-# [1] "T009"
-# [1] "TX018"
-# [1] "SO50X"
-# [1] "A001"
-# [1] "A002"
-# [1] "A017"
-# [1] "MWA019"
-# [1] "MWA009"
-# [1] "MWA012"
-# [1] "MWB018"
-# [1] "TW407"
 ```
-
 
 make special plots for the screens done at multiple dye concentrations
 ```{r}
@@ -461,32 +155,33 @@ facet_wrap_two_conc <- function(df_melt, title) {
   p # return the plot
 }
 
-jp <- readRDS("individual_processed_screens/Exp0486--Jdomain-processed.rds") %>%
-            filter(! dye %in% c("DMSO", "Empty")) %>%
-            #filter(dye %in% c("A001", "A002", "A003")) %>%
-            unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
-            facet_wrap_two_conc( . , "Exp0486--Jdomain-all-traces" ) %>%
-            ggsave("Exp0486--Jdomain-all-traces.pdf", ., height = 22, width = 17)
+# 
+# jp <- readRDS("individual_processed_screens/Exp0486--Jdomain-processed.rds") %>%
+#             filter(! dye %in% c("DMSO", "Empty")) %>%
+#             #filter(dye %in% c("A001", "A002", "A003")) %>%
+#             unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+#             facet_wrap_two_conc( . , "Exp0486--Jdomain-all-traces" ) %>%
+#             ggsave("Exp0486--Jdomain-all-traces.pdf", ., height = 22, width = 17)
+# 
+# 
+# readRDS("individual_processed_screens/Exp0503--FKBP12-processed.rds") %>%
+#   filter(! dye %in% c("DMSO", "Empty")) %>%
+#             unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+#             facet_wrap_two_conc( . , "Exp0503--FKBP12-all-traces" ) %>%
+#             ggsave( "Exp0503--FKBP12-all-traces.pdf", ., width = 17, height = 22)
+# 
+# readRDS("individual_processed_screens/Exp0507--Hsc70-processed.rds") %>%
+#   filter(! dye %in% c("DMSO", "Empty")) %>%
+#             unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+#             facet_wrap_two_conc( . , "Exp0507--Hsc70-all-traces" ) %>%
+#             ggsave("Exp0507--Hsc70-all-traces.pdf", .,width = 17, height = 22)
 
-
-readRDS("individual_processed_screens/Exp0503--FKBP12-processed.rds") %>%
-  filter(! dye %in% c("DMSO", "Empty")) %>%
-            unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
-            facet_wrap_two_conc( . , "Exp0503--FKBP12-all-traces" ) %>%
-            ggsave( "Exp0503--FKBP12-all-traces.pdf", ., width = 17, height = 22)
-
-readRDS("individual_processed_screens/Exp0507--Hsc70-processed.rds") %>%
-  filter(! dye %in% c("DMSO", "Empty")) %>%
-            unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
-            facet_wrap_two_conc( . , "Exp0507--Hsc70-all-traces" ) %>%
-            ggsave("Exp0507--Hsc70-all-traces.pdf", .,width = 17, height = 22)
-  # Exp0497--Hsp60-processed.rds
-# Exp0503--FKBP12-processed.rds
-# Exp0507--Hsc70-processed.rds)
+# readRDS("output_ignore/individual_processed_screens/Exp0521--NHR23LBD-processed.rds") %>%
+#   filter(! dye %in% c("DMSO", "Empty")) %>%
+#             unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+#             facet_wrap_two_conc( . , "Exp0521--NHR23LBD-all-traces" ) %>%
+#             ggsave("output_ignore/individual_processed_screens/plot_all_traces/Exp0521--NHR23LBD-all-traces.pdf", .,width = 17, height = 22)
 ```
-
-
-
 
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.

@@ -192,6 +192,9 @@ screen_names <- c( "Exp0650--His_NusA",
 map2( paths_processed, # for all paths
                  screen_names,
                  save_processed_screen )
+
+
+
 ```
 
 Processing of old screens, which are variously formatted and need a bit more picking through
@@ -313,6 +316,12 @@ write_rds( old_screen_df_list[[3]], paste0("individual_processed_screens/", exp_
 ```
 
 ```{r}
+## on 20200408 realized i had forgotten NHR23LBD
+
+```
+
+
+```{r}
 # Exp0507 weirdly had just the top protein melted. Made this new function to handle Exp0507 on its own
 process_old_screen_Exp507 <- function( paths_processed, screen_num ) {
   # make the dye layouts for the top and bottom
@@ -391,8 +400,27 @@ df_eIF2B_with_ISRIB <- read_processed_screen(paths_eIF2B[[2]], screen_names_eIf2
 
 write_rds( df_eIF2B_no_ISRIB , paste0("individual_processed_screens/", "Exp0468--eIF2B_no_ISIB", "-processed.rds"))
 write_rds( df_eIF2B_with_ISRIB , paste0("individual_processed_screens/", "Exp0469--eIF2B_with_ISRIB", "-processed.rds"))
-  
+
 ```
+Realized that I had forgotten to add NHR-23LBD. This screen was done in the same manner as the eIF2B screens--two concntrations, but all protein in one plate, all buffers in another
+```{r}
+path_NHR23 <- c("../Exp0521--20190227_NHR32LBD/intermediate")
+
+screen_name_NHR23 <- c("Exp0521--NHR23LBD")
+
+df_NHR23 <- read_processed_screen(path_NHR23[[1]], path_NHR23[[1]]) %>% 
+                  mutate(dye = clean_dye_names(.$dye)) %>%
+                  select(-c("dye_conc", "dye_conc_type", "dye_conc_type_channel")) %>% # drop these, which reflect the old dye names
+                  unite("dye_conc", c(dye, conc), remove = FALSE) %>%
+                  unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
+                  unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE) %>%
+                  mutate_at(vars(-Temperature, -value, -column, -conc, -channel_f), as.character) %>%
+                  mutate_at(vars(Temperature, value, column, conc), as.numeric)
+
+write_rds( df_NHR23 , paste0("output_ignore/individual_processed_screens/", "Exp0521--NHR23LBD", "-processed.rds"))
+
+```
+
 
 
 
