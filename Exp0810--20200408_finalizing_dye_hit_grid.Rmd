@@ -1,0 +1,223 @@
+---
+title: "Finalizing the dye hit grid"
+output: html_notebook
+---
+
+We have called all hits for all screens. 
+Before making the final figure, we should plot everything that was called as a hit (and not a hit), to double-check our calls and catch any errors. 
+These will also serve a supplemental figures, likely
+
+Also, we need to sort through the hits called as a "2", which means "some protein-responsive behavior, but not a cannonical, at-the-correct-temperature DSF-like transition. Some of these can be represented in the main heatmap as "alternative detections" but we want to make sure we don't put any trash in that category... 
+```{r}
+library(gridExtra)
+library(phytools) # used to create the hierarchical clustering graph, and define the dye hit order
+library(tidyverse)
+```
+
+First, need to re-do the hierarchichal clustering on chemminer to include the three AW dyes 
+```{r}
+# https://chemminetools.ucr.edu/tools/list_jobs/
+# OpenBabel descriptors also calculated and downloaded: 
+chem_desc <- read_csv("output_ignore/dye_descriptors/Exp0810--20200408_open_babel_descriptors.csv") %>%
+  pivot_longer(-cid, names_to = "desc", values_to = "value") %>%
+  dplyr::rename(dye =  "cid")
+
+clean_dye_names <- function( vec ) {
+  vec %>%
+    gsub( "S.O.500X|SO500X", "SO5X", . ) %>% # low concentration SYPRO
+    gsub( "S.O.5000X", "SO50X", . ) %>% # high concentration SYPRO, from old screens
+    str_replace_all(. , "-", "") # remove hyphens from the names 
+}
+
+# these dyes include all of the ones for which we have both screening data and structures
+#dye_order <- readRDS("output_ignore/dye_descriptors/Exp0810--dye_order.rds")
+tre_1 <- read.newick(file = "output_ignore/dye_descriptors/clusteringtree (4).tre")
+dye_order <- tre_1$tip.label%>% clean_dye_names() %>% factor(. , levels = .) 
+
+dye_order <- tibble(
+              dye_order = dye_order,
+              order_numeric = c(1:length(dye_order))
+            )
+
+remove_screens <- c("Ds00009--0p01_TritonX100_in_P1", "Ds00011--Tau_P301S", "Exp0618--OLF", "Exp0707--DDM_buffer", "Exp0729--Tau_mi_diamond_10uM", "Exp0730--Tau_ms_diamond", "Exp0734--Tau_mi_diamond_1uM") # screens which we aren't going to consider in the paper
+
+# read in and label all dye hits
+dye_hits <- read_csv("output_ignore/hit_definitions/Exp0810--20200404_all_screen_hits_v3.csv") %>%
+            pivot_longer(-c(comments, dye, `buffer too bad?`, reject_buffer, maxed_out, protein_sensitive), names_to = "screen", values_to = "value")  %>%
+            mutate(dye_f = factor(.$dye, levels = dye_order$dye_order )) %>%
+            filter(! screen %in% remove_screens) %>%
+            mutate_at("value", gsub, pattern = 1, replacement = 10) %>%
+            mutate_at("value", gsub, pattern = 2, replacement = 5) %>%
+            mutate_at("value", as.numeric) %>%
+            mutate_at("screen", gsub, pattern = "NHR32LBD", replacement = "NHR23LBD") %>%
+            filter(! dye %in% c("SO5X", "SO50X")) %>% # keep only the "SYPRO" definition, which combines any SYPRO concentration
+            filter(! dye %in% c("DMSO", "AW131", "AW132", "AW134"))# remove the DMSO and SYPRO columns
+
+head(dye_hits)
+# read in the layouts to determine which dyes were tested in each screen
+dye_hits %>%
+  ggplot(aes(x = screen, y = dye_f, fill = value), color = NA) +
+  geom_tile() +
+  theme_bw() +
+  #scale_fill_viridis_c()+
+ # dsfworld_default +
+  coord_flip() -> p
+p
+```
+```{r}
+layouts_per_screen <- read_csv("output_ignore/hit_definitions/Exp0810--layouts_to_screens.csv")
+layouts_per_screen
+dyes_in_screenx <- read_csv("output_ignore/hit_definitions/Exp0810--all_layouts.csv")
+
+dyes_in_screen <- read_csv("output_ignore/hit_definitions/Exp0810--all_layouts.csv") %>%
+                    pivot_longer(-plate, names_to = "column", values_to = "dye") %>%
+                    mutate_at("dye", clean_dye_names) %>%
+                    mutate_at("dye", gsub, pattern = "SO50X", replacement = "SYPRO") %>%
+                    filter(! dye %in% c("DMSO", "AW131", "AW132", "AW134")) %>% # remove the DMSO and SYPRO columns
+                    filter( dye %in% dye_hits$dye ) %>%
+                    rename(daughter = "plate") %>%
+                    full_join(layouts_per_screen, by = "daughter") %>%
+                    rename(screen = "Screen") %>%
+                    mutate("tested_dye" = rep(1, times = nrow(.)) ) %>%
+                    select(-c(column, daughter)) %>%
+                    group_by(screen) %>%
+                    distinct(dye, .keep_all = TRUE) %>% # remove the duplicate dyes which result from the layouts in which dyes were screened at multiple concentrations
+                    ungroup() %>%
+                    pivot_wider(id_cols = screen, names_from = dye, values_from = tested_dye) %>%
+                    mutate(SYPRO = rep(1, times = nrow(.))) %>% # SYPRO was always screened %>%
+                    pivot_longer(-screen, names_to = "dye", values_to = "tested",values_drop_na = FALSE)
+
+dyes_in_screen %>% filter(screen == "Exp0521--NHR23LBD")
+
+dyes_in_screen %>%
+  full_join(dye_hits, by = c("screen", "dye")) %>%
+  filter( tested == 1 ) %>%
+  filter( screen %in% dye_hits$screen) %>%
+  ggplot(aes(x = screen, y = dye_f, fill = value), color = NA) +
+  geom_tile() +
+  theme_bw() +
+  #scale_fill_viridis_c()+
+ # dsfworld_default +
+  coord_flip()
+```
+
+
+
+First, read in the dye hit grid as it is now
+```{r}
+hits_raw <- read_csv("output_ignore/hit_definitions/Exp0810--20200404_all_screen_hits_v2.csv") %>%
+                  pivot_longer(-c(comments, dye, `buffer too bad?`, reject_buffer, maxed_out, protein_sensitive), names_to = "screen", values_to = "value")  %>%
+                  filter(dye %in% clustered_dyes) %>%
+                   mutate(dye_f = factor(.$dye, levels = clustered_dyes)) 
+
+any(is.na(hits_raw$dye_f) ) # no dyes should have NA in their factor ordering
+
+# ultimately, these screens aren't going to be represented in the heat map (for various collaborator or "these don't tradiitonally melt anyway" reasons), but we'll carry them through these next steps anyway.   
+# remove_screens <- c("Ds00009--0p01_TritonX100_in_P1", "Ds00011--Tau_P301S", "Exp0618--OLF", "Exp0707--DDM_buffer", "Exp0729--Tau_mi_diamond_10uM", "Exp0730--Tau_ms_diamond", "Exp0734--Tau_mi_diamond_1uM")
+```
+Plot all the hits, and all the not-hits, for each protein
+Probably should do this as a grob?
+```{r}
+dsfworld_default <- theme( # adapted from free amino acids hit call
+  text = element_text(size = 10),
+  axis.title.x = element_blank(),
+  # axis.title.y = element_blank(),
+  axis.text.y = element_text(size = 5),
+ # axis.text.x = element_blank(),#element_text(angle = 45, vjust = 0.5),
+ axis.text.x = element_text(angle = 90, vjust = 0.5),
+  legend.position = "right",
+  plot.title = element_text(lineheight=.8, face="bold", size = 12),
+  panel.grid.minor = element_blank(),
+  panel.grid.major = element_blank(), 
+  strip.background = element_blank(),
+ aspect.ratio = 1/1.618
+)
+
+# read in the raw data
+# sort in to 1, 2, or neither (no hit)
+# make the same plot for each one 
+
+ # this one should work for everything?
+facet_wrap_hits <- function(df_melt, title) {
+  p <- ggplot(df_melt, aes(x = Temperature, # temperature on X
+                           y = value, # RFU on y
+                           color = channel_f, # colored by the state
+                           linetype = type,
+                           group = well_channel_type # group means series, as in, this defines the unique data sets
+  )) +
+    geom_line(size = 0.3, alpha = 0.8) + # change the line type depending on the dye concentration # linetype = df_melt$conc #
+    facet_wrap(~dye, scales = "free", ncol = 15) +
+    labs(title = title, color = "Channel") +
+    theme_bw() +
+    scale_color_manual( values = c("Cy5.5" = "#67000d", "Cy5" = "#a50f15", "ROX" = "#ef3b2c", "TAMRA" = "#f16913", "JOE" = "#74c476", "FAM" = "#2171b5")) +
+    scale_linetype_manual(values = c("dashed", "solid")) +
+    facet_no_y_theme
+  
+  p # return the plot
+}
+```
+```{r}
+# try with NHR23LBD and with Exp0650--His_NusA
+NHR23LBD <- readRDS("output_ignore/individual_processed_screens/Exp0521--NHR23LBD-processed.rds") # has two concentrations per dye
+NusA <- readRDS("output_ignore/individual_processed_screens/Exp0650--His_NusA-processed.rds") # has one concentration per dye
+```
+```{r}
+# first, define which dyes fill what categories 
+
+fetch_hit_dyes <- function( hit_df, screen_name, hit_value ) {
+  hit_df %>%
+  filter(value == hit_value,
+         screen == screen_name) %>%
+  select(dye) %>%
+  as_vector() %>%
+  as.character()
+}
+
+calc_width <- function( hit_vec ) {
+  nrow <- hit_vec %>%
+          length()
+}
+
+NHR23LBD_hits0 <- fetch_hit_dyes(hits_raw, "Exp0521--NHR32LBD", hit_value = 0)
+NHR23LBD_hits1 <- fetch_hit_dyes(hits_raw, "Exp0521--NHR32LBD", hit_value = 1)
+NHR23LBD_hits2 <- fetch_hit_dyes(hits_raw, "Exp0521--NHR32LBD", hit_value = 2)
+
+```
+
+```{r}
+# make the plots
+p1 <- NHR23LBD %>%
+  unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+  filter(dye %in% NHR23LBD_hits1) %>%
+  facet_wrap_hits(., "Primary hits (class 1)")
+p1
+p2 <- NHR23LBD %>%
+  unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+  filter(dye %in% NHR23LBD_hits2) %>%
+  facet_wrap_hits(., "Alternate hits (class 2)")
+
+p0 <- NHR23LBD %>%
+  unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+  filter(dye %in% NHR23LBD_hits0) %>%
+  facet_wrap_hits(., "Not hits (class 0)")
+  
+p_all <- grid.arrange(p1, p2, p0, nrow = 3)
+
+ggsave("test_grob.pdf", p1, width = 17, height = 25)
+```
+
+```{r}
+grid.arrange(
+  grobs = gl,
+  widths = c(2, 1, 1),
+  layout_matrix = rbind(c(1, 2, NA),
+                        c(3, 3, 4))
+)
+```
+
+
+
+
+
+
+

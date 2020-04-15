@@ -1,0 +1,433 @@
+---
+title: "Isolating buffer data"
+output: html_notebook
+---
+
+Here, we're reading in a manually-created excel file with data on all of the buffers which have been screened, and treating them as a set of negative controls for inclusion in the final heat map.
+
+This is also where we will begin making some of the more final calls about which dyes get "rejected" for various buffer-alone reasons. 
+
+```{r}
+library(phytools) # to read in the newick tree
+library(tidyverse)
+```
+
+```{r}
+# read in the buffer information
+buffer_components <- read.csv("output_ignore/Exp0810--20200405_screening_buffers_updated.csv") %>%
+                  select_if(~sum(!is.na(.)) > 0) %>%
+                  drop_na() %>%
+                  rename(
+                    screen = "Screen",
+                    buffer = "Buffer",
+                         buffer_component = "Buffer.component",
+                         buffer_conc = "Buffer.concentration..mM.",
+                         NaCl = "NaCl.mM",
+                         TritonX100 = "Triton",
+                        Tween20  = "Tween.20")
+          
+buffer_components$screen %>% table()
+
+# do the first visualization with these
+# Ds00010--Hsp72_SBD: Tween20
+# Ds00009--0p01_TritonX100_in_P1 : Triton
+# Exp0710--Nucleosome 1 mM EDTA
+
+# Ds00010--Hsp72_SBD: EDTA
+# Exp0732--Widom_601_DNA 1 mM EDTA
+
+# Ds00010--Hsp72_SBD: 2% glycerol
+# Ds00010--Hsp72_SBD: TCEP
+#Exp0727--Snf2h_dye_screen: BME
+#Exp0723--Retinoic_acid_receptor_alpha 5 mM DTT
+```
+```{r}
+main_buffer_heat_map <- df_buffers %>%
+  filter(screen %in% c("Ds00010--Hsp72_SBD: Tween20"))
+```
+
+read in the screens with unique buffers
+```{r}
+dsfworld_default <- theme( # adapted from free amino acids hit call
+  text = element_text(size = 10),
+  # axis.title.x = element_blank(),
+  # axis.title.y = element_blank(),
+  axis.text = element_text(size = 8),
+  axis.text.x = element_text(angle = 45, vjust = 0.5),
+  legend.position = "right",
+  plot.title = element_text(lineheight=.8, face="bold", size = 12),
+  panel.grid.minor = element_blank(),
+  panel.grid.major = element_blank(), 
+  strip.background = element_blank(),
+  aspect.ratio = (1/1.618)
+  # axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+  # axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid')
+)
+
+load_screen <- function( screen_name ) {
+  dir("output_ignore/individual_processed_screens", full.names = T, pattern = screen_name ) %>%
+    readRDS()
+}
+
+load_buffer_screen <- function( screen_name ) {
+  load_screen(screen_name) %>%
+    filter(type == "buffer") %>%
+    filter(! dye %in% c("DMSO", "Empty"))
+}
+
+buffer_components <- df_buffers %>%
+                  distinct(buffer, .keep_all = TRUE)
+
+read_screens <- unique_buffers$screen %>% as.character() # these are the screens which should be read in 
+read_screens
+# test <- load_buffer_screen(read_screens[1])
+# test %>% head()
+
+# buffer_data_list <- lapply(read_screens, load_buffer_screen)
+# write_rds(buffer_data_list, "output_ignore/Exp810--20200406_buffer_data.rds")
+buffer_data_list <- readRDS("output_ignore/Exp810--20200406_buffer_data.rds")
+
+```
+
+```{r}
+# read in the buffer component data
+# buffer_comp <- read_csv("output_ignore/Exp0810--20200405_screening_buffers.csv") %>% rename(screen = "Screen")
+
+buffer_df <- buffer_data_list %>% 
+              bind_rows() %>%
+             bind_rows( "Exp0625--CP581_CBPKIX-processed.rds" %>% load_buffer_screen())  # add a P1 screen, since the J domain screen was so long ago it doesn't have the full library
+
+buffer_df$screen %>% table()
+
+buffer_combined <- buffer_df %>%
+               full_join( buffer_components, by = "screen" )
+
+representative_buffers <- buffer_combined %>%
+  filter(screen %in% c("Ds00010--Hsp72_SBD", "Ds00009--0p01_TritonX100_in_P1", "Exp0710--Nucleosome", "Exp0625--CP581_CBPKIX")) # for tween 20, triton, EDTA, and none of these things, respectively
+```
+
+
+
+
+```{r}
+clean_dye_names2 <- function( vec ) {
+  vec %>%
+    gsub( "S.O.500X|SO500X|S.O.low|S.O. low|SYPRO", "SO5X", . ) %>% # low concentration SYPRO
+    gsub( "S.O.5000X|S.O.high|S.O. high", "SO50X", . ) %>% # high concentration SYPRO, from old screens
+    str_replace_all(. , "-", "") 
+  
+}
+
+tre_1 <- read.newick(file = "output_ignore/clusteringtree (4).tre")
+dye_order <- tre_1$tip.label%>% clean_dye_names2() %>% factor(. , levels = .) 
+
+
+representative_buffers$screen %>% table()
+# the summarized buffer dataframe
+buffer_summary <- representative_buffers %>%
+  group_by(well, channel, screen) %>%
+  mutate( yspan = max(value) - min(value) ) %>%
+  ungroup() %>%
+  group_by(well, screen) %>%
+  mutate(largest_yspan = yspan== max(yspan)) %>%
+  ungroup() %>%
+  mutate(dye_f = factor(.$dye, levels = dye_order )) %>%
+  filter(! dye %in% c("DMSO", "Empty"))
+
+buffer_summary$screen %>% table()
+```
+
+Make some plots to look at buffer behaviors 
+```{r}
+
+buffer_summary %>%
+  filter(largest_yspan == TRUE) %>%
+  filter(screen != "Ds00010--Hsp72_SBD") %>%
+  filter(screen != "Exp0710--Nucleosome") %>%
+  #filter(largest_)
+  ggplot(aes(x = screen, y = dye_f, fill = yspan )) +
+  geom_tile() +
+  scale_fill_gradient(low = "#737373", high = "white")
+ #  scale_fill_gradient2(low = "green", mid = "yellow", high = "red")
+
+```
+
+```{r}
+buffer_summary %>%
+  distinct(yspan, .keep_all = TRUE) -> t2
+
+
+buffer_summary <- representative_buffers %>%
+  group_by(well, channel, screen) %>%
+  mutate( yspan = max(value) - min(value) ) %>%
+  ungroup() 
+representative_buffers$screen %>% table()
+
+buffer_summary$screen %>% table
+```
+
+
+Make the protein hit heatmap.
+First, read in the layouts to add NAs to the dyes not screened
+```{r}
+dyes_in_layouts <- read_csv("output_ignore/hit_definitions/Exp0810--all_layouts.csv") %>%
+  pivot_longer(-plate, names_to = "column", values_to = "dye") %>%
+  mutate_at("dye", clean_dye_names)
+
+dyes_in_layouts
+#layouts_per_screen <- read_csv("output_ignore/Exp0810--layouts_to_screens.csv")
+
+```
+
+Dye hit data
+```{r}
+
+dsfworld_default <- theme( # adapted from free amino acids hit call
+  text = element_text(size = 10),
+  axis.title.x = element_blank(),
+  # axis.title.y = element_blank(),
+  axis.text.y = element_text(size = 5),
+ # axis.text.x = element_blank(),#element_text(angle = 45, vjust = 0.5),
+ axis.text.x = element_text(angle = 90, vjust = 0.5),
+  legend.position = "right",
+  plot.title = element_text(lineheight=.8, face="bold", size = 12),
+  panel.grid.minor = element_blank(),
+  panel.grid.major = element_blank(), 
+  strip.background = element_blank()
+)
+
+dye_hits <- read_csv("output_ignore/Exp0810--20200404_all_screen_hits_v2.csv") %>%
+  pivot_longer(-c(comments, dye, `buffer too bad?`, reject_buffer, maxed_out, protein_sensitive), names_to = "screen", values_to = "value") %>%
+    mutate(dye_f = factor(.$dye, levels = dye_order ))
+
+
+remove_screens <- c("Ds00009--0p01_TritonX100_in_P1", "Ds00011--Tau_P301S", "Exp0618--OLF", "Exp0707--DDM_buffer", "Exp0729--Tau_mi_diamond_10uM", "Exp0730--Tau_ms_diamond", "Exp0734--Tau_mi_diamond_1uM")
+# dye_hits %>% head()
+
+dye_hits %>%
+ filter(! screen %in% remove_screens) %>%
+  ggplot(aes(x = screen, y = dye_f, fill = value), color = NA) +
+  geom_tile() +
+  theme_bw() +
+  scale_fill_viridis_c()+
+  dsfworld_default +
+  coord_flip() -> p
+p
+
+ggsave("output_ignore/test_heatmap.pdf", p, width = 20, height = 5)
+```
+
+
+```{r}
+t0 <- buffer_summary %>%
+  distinct(yspan, .keep_all = TRUE) %>%
+  filter(largest_yspan == TRUE) %>%
+  filter(screen == "Exp0625--CP581_CBPKIX") 
+
+t1 <- buffer_summary %>%
+  distinct(yspan, .keep_all = TRUE) %>%
+  filter(largest_yspan == TRUE) %>%
+  filter(screen == "Exp0710--Nucleosome")
+t0
+
+
+t1
+t0[!t0$dye %in% t1$dye,]
+
+```
+
+
+
+
+
+Load in the free amino acid data
+From the functions from earlier in this experiment
+```{r}
+clean_dye_names <- function( vec ) {
+  vec %>%
+    gsub( "S.O.500X|SO500X|S.O.low|S.O. low", "SO5X", . ) %>% # low concentration SYPRO
+    gsub( "S.O.5000X|S.O.high|S.O. high", "SO50X", . ) %>% # high concentration SYPRO, from old screens
+    str_replace_all(. , "-", "") # remove hyphens from the names 
+}
+
+
+
+read_processed_screen <- function(paths_processed, screen_name, save_screen) {
+  # paths_processed points to the folder which contains the processed data, e.g. ../Exp0615--20190628_BSA_606/intermediate
+  # screen name is the index, e.g. Exp0615
+  
+  file_path <- dir(paths_processed, full.names = T, pattern = "buffer_and_protein_raw_data_m.rds")
+ # screen_name <- substr(paths_processed, 4+3, 10+3)
+  print(file_path)
+  
+ df <-  file_path %>%
+          readRDS() %>%
+              mutate(screen = rep(screen_name, times = nrow(.))) %>%
+              #separate(screen, c("screen", "protein"), sep = "-", remove = TRUE) %>%
+              mutate_at(c("dye"), clean_dye_names ) %>%
+              select(-c("dye_conc", "dye_conc_type", "dye_conc_type_channel")) %>% # drop these, which reflect the old dye names
+              unite("dye_conc", c(dye, conc), remove = FALSE) %>% # add these back in
+              unite("dye_conc_type", c(dye_conc, type), remove = FALSE) %>%
+              unite("dye_conc_type_channel", c(dye_conc_type, channel), remove = FALSE)  %>%
+
+            # second, homogenize the column types
+              mutate_at(vars(-Temperature, -value, -column, -conc, -channel_f), as.character) %>%
+              mutate_at(vars(Temperature, value, column, conc), as.numeric)
+ if ( save_screen == TRUE ) {
+     write_rds(df, paste0("output_ignore/individual_processed_screens/", screen_name, "-processed.rds"))
+ }
+
+  df
+}
+
+```
+
+```{r}
+# read in all of the intermediate files
+mix_folders <- c("../Exp0535--2090314_free_aas/mix1_G/Exp0804_reprocessed/intermediate",
+                 "../Exp0535--2090314_free_aas/mix2_CMLRG/Exp0804_reprocessed/intermediate", 
+                 "../Exp0535--2090314_free_aas/mix3_DESNQ/Exp0804_reprocessed/intermediate", 
+                 "../Exp0535--2090314_free_aas/mix4_AVILP/Exp0804_reprocessed/intermediate", 
+                 "../Exp0535--2090314_free_aas/mix5_FYWTH/Exp0804_reprocessed/intermediate")
+
+aa_mixes <- c("G", "CMLRG", "DESNQ", "AVILP", "FYWTH")
+
+read_and_label <- function( filepath, label ) {
+  df <- readRDS(filepath) %>%
+        mutate( aas = rep(label, times = nrow(.))) # append an amino-acid specific label
+}
+
+aas_screen_names <- c("Exp0535--free_aas_mix1_G",
+                      "Exp0535--free_aas_mix2_CMLRG",
+                      "Exp0535--free_aas_mix3_DESNQ",
+                      "Exp0535--free_aas_mix4_AVILP",
+                      "Exp0535--free_aas_mix5_FYWTH"
+                      )
+
+#mG <- read_processed_screen(mix_folders[[1]], screen_name = "Exp0535--free_aas_mix1_G", save_screen =TRUE)# try with one
+aas <- map2(mix_folders, aas_screen_names, read_processed_screen, save_screen = TRUE)
+
+```
+
+```{r}
+aas[[1]] %>% head()
+```
+
+
+# make visualizations for each of the backgrounds
+
+Read in the tanimoto clustering data
+```{r}
+library(phytools)
+tre_1 <- read.newick(file = "output_ignore/clusteringtree (4).tre")
+
+dye_order <- tre_1$tip.label%>% clean_dye_names() %>% factor(. , levels = .) 
+
+dye_order <- tibble(
+  dye_order = dye_order,
+  order_numeric = c(1:length(dye_order))
+)
+
+dye_order
+```
+
+
+```{r}
+dsfworld_default <- theme( # adapted from free amino acids hit call
+  text = element_text(size = 10),
+  # axis.title.x = element_blank(),
+  # axis.title.y = element_blank(),
+  axis.text.y = element_text(size = 5),
+  axis.text.x = element_text(angle = 0, vjust = 0.5, size = 10),
+  legend.position = "right",
+  plot.title = element_text(lineheight=.8, face="bold", size = 12),
+  panel.grid.minor = element_blank(),
+  panel.grid.major = element_blank(), 
+  strip.background = element_blank(),
+  aspect.ratio = (1/1.618)
+  # axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+  # axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid')
+)
+
+
+aas_summary <- aas[[1]] %>%
+  group_by(variable ) %>%
+  mutate(max = max(value),
+            min = min(value),
+            yspan = max(value) - min(value)) %>%
+  distinct(max, .keep_all = TRUE)
+
+aas_summary %>%
+  mutate(dye_order = factor(dye, levels = dye_order)) %>%
+  ggplot(aes(x = dye_order, y = yspan, color = channel_f))+
+  geom_point(alpha = 0.7) +
+  scale_color_manual( values = c("Cy5.5" = "#67000d", "Cy5" = "#a50f15", "ROX" = "#ef3b2c", "TAMRA" = "#f16913", "JOE" = "#74c476", "FAM" = "#2171b5")) +
+  theme_bw() +
+  dsfworld_default +
+  coord_flip() +
+  labs(x = "Total RFU span over heating range", y = "", color = "Channel")
+
+```
+```{r}
+condition_for_tre <- function( df, tree_names ){
+  test_mat <-  df %>% ungroup() %>% select(yspan) %>% as.matrix() #%>%
+  row.names(test_mat) <- df$dye %>% gsub("TW", "TW-", .)
+  
+
+missing_mat <- tre_1$tip.label[!tre_1$tip.label %in% aas_for_mat$dye]
+mat_add <- matrix(0, nrow = length(missing_mat))
+row.names(mat_add) <- missing_mat
+
+rbind(test_mat, mat_add)
+  
+}
+
+test_mat_cond <- condition_for_tre( aas_for_mat, tre_1$tip.label) 
+#tre_1$tip.label <- tre_1$tip.label %>% clean_dye_names()
+test_mat_cond
+
+```
+
+```{r}
+aas_for_mat <- aas_summary %>%
+  #full_join(tibble(dye = tre_1$tip.label), by = "dye") %>%
+  ungroup() %>%
+  group_by(well) %>%
+  mutate(max_yspan = max(yspan)) %>%
+  distinct(dye, .keep_all = TRUE) 
+all(tre_1$tip.label %in% aas_for_mat$dye)
+
+test_mat <-  aas_for_mat %>% ungroup() %>% select(yspan) %>% as.matrix() #%>%
+row.names(test_mat) <- aas_for_mat$dye
+test_mat %>% head()
+test_mat
+
+tre_1 <- read.newick(file = "output_ignore/clusteringtree (4).tre") 
+tre_1_rename <- tre_1
+#tre_1_rename$tip.label <- tre_1$tip.label %>% clean_dye_names()
+
+colors<-colorRampPalette(colors=c("#f7fbff","#08306b"))(800)
+pdf(file = "test_aas_heat_map.pdf", height = 80, width = 10) # save it
+phylo.heatmap(tre_1, test_mat_cond, color = colors )
+#phylo.heatmap(tre_1, class_1, color = colors )#, standardize=FALSE,lwd=3,
+    #pts=FALSE)
+dev.off()
+
+
+tre_1$tip.label[!tre_1$tip.label %in% aas_for_mat$dye]
+
+aas_for_mat$dye
+```
+
+
+
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

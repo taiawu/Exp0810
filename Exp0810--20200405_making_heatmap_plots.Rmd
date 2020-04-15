@@ -1,0 +1,94 @@
+---
+title: "Making dye hit heat maps"
+output: html_notebook
+---
+
+
+This notebook includes functions for making dye hit grid heat-maps.
+
+```{r}
+library(phytools)
+library(tidyverse)
+```
+
+
+```{r}
+# f*ck all of this making the heatmaps in ggplot
+length(dye_tree$tip.label)
+str(outmat)
+
+X_dye <- fastBM(dye_tree, nsim=1)
+str(X_dye)
+str(outmat)
+
+str(dye_tree)
+str(tree)
+pdf(file = "test_heatmap.pdf", height = 80, width = 10) # save it
+phylo.heatmap(dye_tree, X_dye) #, color = color_t, standardize = FALSE,lwd=3,
+    #pts=FALSE)
+dev.off()
+```
+
+```{r}
+for_heatmap <- function( df,  tree, var_name ) {
+  dye_names_tree <- tree$tip.label
+  
+  df_for_mat <- df %>%
+    mutate_at("dye", clean_dye_names ) %>%
+    filter(dye %in% dye_names_tree)
+
+    no_val <- tibble(dye = dye_names_tree[!dye_names_tree %in% df$dye],
+                   value = rep(NA, length(dye_names_tree[!dye_names_tree %in% df$dye]))
+                   )
+    
+    df_for_mat_all <- df_for_mat %>%
+                      bind_rows(no_val) %>%
+                      filter(dye %in% dye_names_tree) %>%
+                      mutate(dye_f = factor(dye, levels =dye_names_tree )) %>%
+                      arrange(desc(dye_f)) %>%
+                      mutate("x_var" = rep(var_name, times = nrow(.)))
+}
+
+dye_order <- dye_tree$tip.label %>% clean_dye_names() %>% factor(. , levels = .) 
+
+
+df_for_heatmap <- df_test %>%
+                  for_heatmap(., dye_tree, var_name = "Glycine")
+
+ ggplot(df_for_heatmap, aes(x = x_var, y = dye_f )) +
+   geom_tile(data = df_for_heatmap %>% filter(is.na(value)), fill = NA) +
+   geom_tile(data = df_for_heatmap %>% filter(!is.na(value)), aes(fill = value)) +
+   theme_void()
+```
+
+
+Making heatmaps using ggplot, and the dye ordering from the newick tree. 
+
+Making the dye hit grid heat maps
+
+First, read in the dye layouts from the various screens, and add NAs to the dyes not screened. Currently, not-hits and dyes not screened are both zeroes in the hits sheet
+```{r}
+dyes_in_layouts <- read_csv("output_ignore/Exp0810--all_layouts.csv")
+
+layouts_per_screen <- read_csv("output_ignore/Exp0810--layouts_to_screens.csv")
+layouts_per_screen
+```
+
+```{r}
+
+```
+
+
+
+Then make the heatmaps for the buffers
+```{r}
+# make the buffer hit grid
+buffer_hits_raw <- read_csv("output_ignore/Exp0810--20200404_all_screen_hits_v2.csv")
+
+
+```
+
+
+
+
+
