@@ -272,6 +272,22 @@ test <- make_screen_summary(path_to_data = screen_paths[[5]],
                                 ncol_set = 15)
 
 map2(screen_paths,  screen_names, make_screen_summary, hits_filtered = hits_filtered,  ncol_set = 15 )
+# get the J-domain screen, which i believ eis called "reprocessed" in the hit definitions
+# failed and retry include: (these probably aren't in the hit df screens, either at all, or with precisely these names, or there are no dye in one of the categories (e.g. p300 had no 1s, so it failed) )
+# Exp0486--Jdomain_hit_definitions.pdf
+# "Exp0535--free_aas_mix1_G-processed.rds",
+# "Exp0535--free_aas_mix2_CMLRG-processed.rds",
+# "Exp0535--free_aas_mix3_DESNQ-processed.rds",
+# "Exp0535--free_aas_mix4_AVILP-processed.rds",
+# "Exp0535--free_aas_mix5_FYWTH-processed.rds",
+#"Exp0595--ACD_domain_protein6-processed.rds",
+#"Exp0596--H104-FL-B5-pre-inc_protein5-processed.rds",
+# "Exp0598--FL-B5-pre-inc_protein2-processed.rds",
+# "Exp0610--B5_with_zinc-processed.rds",
+# "Exp0626--CP547_p300_KIX-processed.rds",
+# "Exp0627--HisSUMO-processed.rds",
+
+
 ```
 
 ```{r}
@@ -279,39 +295,40 @@ paste_second <- function( pattern_2 , pattern_1) {
   paste0(pattern_1, pattern_2 )
 }
 
-remove_screens <- c("Ds00009--0p01_TritonX100_in_P1", "Ds00011--Tau_P301S", "Exp0618--OLF", "Exp0707--DDM_buffer", "Exp0729--Tau_mi_diamond_10uM", "Exp0730--Tau_ms_diamond", "Exp0734--Tau_mi_diamond_1uM")
-processed_screens <- c(
-#"Ds00009--0p01_TritonX100_in_P1-processed.rds",
-"Ds00010--Hsp72_SBD-processed.rds",
-#"Ds00011--Tau_P301S-processed.rds",
-"Exp0468--eIF2B_no_ISIB-processed.rds",
-"Exp0469--eIF2B_with_ISRIB-processed.rds",
-"Exp0486--Jdomain-processed.rds",
-"Exp0497--Hsp60-processed.rds",
-"Exp0503--FKBP12-processed.rds",
-"Exp0507--Hsc70-processed.rds",
-"Exp0521--NHR23LBD-processed.rds",
-"Exp0535--free_aas_mix1_G-processed.rds",
-"Exp0535--free_aas_mix2_CMLRG-processed.rds",
-"Exp0535--free_aas_mix3_DESNQ-processed.rds",
-"Exp0535--free_aas_mix4_AVILP-processed.rds",
-"Exp0535--free_aas_mix5_FYWTH-processed.rds",
-"Exp0595--ACD_domain_protein6-processed.rds",
-"Exp0596--H104-FL-B5-pre-inc_protein5-processed.rds",
-"Exp0598--FL-B5-pre-inc_protein2-processed.rds",
-"Exp0610--B5_with_zinc-processed.rds",
-"Exp0615--BSA-processed.rds",
-"Exp0616--FKBP12-processed.rds",
-#"Exp0618--OLF-processed.rds",
-"Exp0619--PPIE-processed.rds",
-"Exp0620--NPAS2_PAS-A-processed.rds",
-"Exp0621--PER2_PAS-AB_wt-processed.rds",
-"Exp0622--CLOCK_PASB_W362A-processed.rds",
-"Exp0623--CP_BMAL1_PASB_W427A-processed.rds",
-"Exp0624--HisPER2_AB_I324N-processed.rds",
-"Exp0625--CP581_CBPKIX-processed.rds",
-"Exp0626--CP547_p300_KIX-processed.rds",
-"Exp0627--HisSUMO-processed.rds",
+#remove_screens <- c(
+#   "Ds00009--0p01_TritonX100_in_P1", "Ds00011--Tau_P301S", "Exp0618--OLF", "Exp0707--DDM_buffer", "Exp0729--Tau_mi_diamond_10uM", "Exp0730--Tau_ms_diamond", "Exp0734--Tau_mi_diamond_1uM")
+ processed_screens <- c(
+# #"Ds00009--0p01_TritonX100_in_P1-processed.rds",
+# "Ds00010--Hsp72_SBD-processed.rds",
+# #"Ds00011--Tau_P301S-processed.rds",
+# "Exp0468--eIF2B_no_ISIB-processed.rds",
+# "Exp0469--eIF2B_with_ISRIB-processed.rds",
+# "Exp0486--Jdomain-processed.rds",
+# "Exp0497--Hsp60-processed.rds",
+# "Exp0503--FKBP12-processed.rds",
+# "Exp0507--Hsc70-processed.rds",
+# "Exp0521--NHR23LBD-processed.rds",
+# "Exp0535--free_aas_mix1_G-processed.rds",
+# "Exp0535--free_aas_mix2_CMLRG-processed.rds",
+# "Exp0535--free_aas_mix3_DESNQ-processed.rds",
+# "Exp0535--free_aas_mix4_AVILP-processed.rds",
+# "Exp0535--free_aas_mix5_FYWTH-processed.rds",
+# "Exp0595--ACD_domain_protein6-processed.rds",
+#"Exp0596--H104-FL-B5-pre-inc_protein5-processed.rds",
+# "Exp0598--FL-B5-pre-inc_protein2-processed.rds",
+# "Exp0610--B5_with_zinc-processed.rds",
+# "Exp0615--BSA-processed.rds",
+# "Exp0616--FKBP12-processed.rds",
+# #"Exp0618--OLF-processed.rds",
+# "Exp0619--PPIE-processed.rds",
+# "Exp0620--NPAS2_PAS-A-processed.rds",
+# "Exp0621--PER2_PAS-AB_wt-processed.rds",
+# "Exp0622--CLOCK_PASB_W362A-processed.rds",
+# "Exp0623--CP_BMAL1_PASB_W427A-processed.rds",
+# "Exp0624--HisPER2_AB_I324N-processed.rds",
+# "Exp0625--CP581_CBPKIX-processed.rds",
+# "Exp0626--CP547_p300_KIX-processed.rds",
+# "Exp0627--HisSUMO-processed.rds",
 "Exp0628--Hsp10-processed.rds",
 "Exp0629--HisGB1-processed.rds",
 "Exp0630--Hsp60-processed.rds",
