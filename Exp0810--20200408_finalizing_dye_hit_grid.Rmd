@@ -9,7 +9,7 @@ These will also serve a supplemental figures, likely
 
 Also, we need to sort through the hits called as a "2", which means "some protein-responsive behavior, but not a cannonical, at-the-correct-temperature DSF-like transition. Some of these can be represented in the main heatmap as "alternative detections" but we want to make sure we don't put any trash in that category... 
 ```{r}
-library(gridExtra)
+library(grid) # arranging the plots for saving
 library(phytools) # used to create the hierarchical clustering graph, and define the dye hit order
 library(tidyverse)
 ```
@@ -99,24 +99,328 @@ dyes_in_screen %>%
   #scale_fill_viridis_c()+
  # dsfworld_default +
   coord_flip()
+
+# http://www.sthda.com/english/wiki/wiki.php?id_contents=7930
+# the necessary link to add the histogramssing grid arrange
+# see within it
+# # Marginal histogram plot
+# ggMarginal(sp2 + theme_gray(), type = "histogram",
+#            fill = "steelblue", col = "darkblue")
 ```
 
-
-
-First, read in the dye hit grid as it is now
-```{r}
-hits_raw <- read_csv("output_ignore/hit_definitions/Exp0810--20200404_all_screen_hits_v2.csv") %>%
-                  pivot_longer(-c(comments, dye, `buffer too bad?`, reject_buffer, maxed_out, protein_sensitive), names_to = "screen", values_to = "value")  %>%
-                  filter(dye %in% clustered_dyes) %>%
-                   mutate(dye_f = factor(.$dye, levels = clustered_dyes)) 
-
-any(is.na(hits_raw$dye_f) ) # no dyes should have NA in their factor ordering
-
-# ultimately, these screens aren't going to be represented in the heat map (for various collaborator or "these don't tradiitonally melt anyway" reasons), but we'll carry them through these next steps anyway.   
-# remove_screens <- c("Ds00009--0p01_TritonX100_in_P1", "Ds00011--Tau_P301S", "Exp0618--OLF", "Exp0707--DDM_buffer", "Exp0729--Tau_mi_diamond_10uM", "Exp0730--Tau_ms_diamond", "Exp0734--Tau_mi_diamond_1uM")
-```
 Plot all the hits, and all the not-hits, for each protein
 Probably should do this as a grob?
+
+```{r}
+# here are some examples from  http://www.sthda.com/english/wiki/wiki.php?id_contents=7930
+
+```
+
+```{r}
+# this works for arranging facets without distorting their widths if ncol or nrow is not identical between them
+a <- qplot(1:10, rnorm(10), main = "a")
+b <- qplot(1:10, rnorm(10), main = "b")
+c <- qplot(1:10, rnorm(10), main = "c")
+
+pdf("test_layouts.pdf", height = 11, width = 8.5, paper = "letter")
+grid.newpage()
+pushViewport(viewport(layout = grid.layout(3, 15))) 
+# the number of rows is set by the total number of rows in all of the plots
+# the number of columns is the maximum number of ncol in the facets (e.g. 15)
+
+vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
+print(a, vp = vplayout(1, 1:15))  # 1:number of rows in plot 1, 1:number of cols in this facet
+print(b, vp = vplayout(2, 1:3)) # 1:number of rows in this facet, 1:number of cols in this facet
+print(c, vp = vplayout(3, 2:10)) # 1:number of rows in this facet, 1:number of cols in this facet
+
+## Stop writing to the PDF file
+dev.off()
+```
+
+```{r}
+# hits_filtered <- dyes_in_screen %>%
+#                   full_join(dye_hits, by = c("screen", "dye")) %>%
+#                   filter( tested == 1 ) %>%
+#                   filter( screen %in% dye_hits$screen)
+  
+# for a given protein, determine how many hit dyes are present in each
+facet_no_y_theme <- theme( # for the first hit-calling plot, the most austere
+  text = element_text(size = 8),
+  axis.title = element_blank(), # don't label the axes
+  axis.text.x = element_text(angle = 45), # don't label the numbers on the axes
+  axis.ticks = element_blank(), # dont have ticks
+  #legend.position = "right", # put a legent on the right of the plot
+  legend.position = "none", # put a legent on the right of the plot
+  plot.title = element_text(lineheight=.8, face="bold", size = 12), # have a title
+  panel.grid.minor = element_blank(),
+  panel.grid.major = element_blank(),
+  strip.background = element_blank(),
+  panel.spacing.x = unit(0.1, "lines"),
+  panel.spacing.y = unit(0.1, "lines"),
+  aspect.ratio = 1,
+    plot.margin = margin(0, 0, 0, 0, "cm")
+)
+
+facet_wrap_two_conc <- function(df_melt, title, ncol_set) {
+  p <- ggplot(df_melt, aes(x = Temperature, # temperature on X
+                           y = value, # RFU on y
+                           color = channel_f, # colored by the state
+                           linetype = type,
+                           group = well_channel_type # group means series, as in, this defines the unique data sets
+  )) +
+    geom_line(size = 0.3, alpha = 0.8) + # change the line type depending on the dye concentration # linetype = df_melt$conc #
+    facet_wrap(~dye, scales = "free", ncol = ncol_set) +
+    #labs(title = title, color = "Channel") +
+    theme_bw() +
+    scale_color_manual( values = c("Cy5.5" = "#67000d", "Cy5" = "#a50f15", "ROX" = "#ef3b2c", "TAMRA" = "#f16913", "JOE" = "#74c476", "FAM" = "#2171b5")) +
+    scale_linetype_manual(values = c("dashed", "solid")) +
+    facet_no_y_theme
+  
+  p # return the plot
+}
+
+get_dims <- function( ndyes ) {
+  nd_length <- ndyes %>% length()
+  
+  list(
+    total_dyes  = nd_length,
+    ncol = if (nd_length < 15 ) { nd_length } else { 15 },
+    nrow = ceiling( nd_length/15)
+  )
+ 
+}
+
+make_total_dims <- function( dim10, dim5, dim0 ) {
+  total_rows <- dim10$nrow + dim5$nrow + dim0$nrow + 3 # for margins and a title
+  ncols <- max( c(dim10$ncol, dim5$ncol, dim0$ncol)) + 2 # for margins
+  
+  list(total_rows = total_rows, # for margins and a title
+       total_cols = ncols, 
+       
+       hits10_cols = c(2:(dim10$ncol+1)), # start at 2
+       hits10_rows = c(2:(dim10$nrow+1)), # start at 2
+       
+       hits5_cols = c(2:(dim5$ncol+1)),  # start at 2
+       hits5_rows = c((2+dim10$nrow):((1+dim10$nrow)+dim5$nrow)),
+       
+       hits0_cols = c(2:(dim0$ncol+1)),  # start at 2
+       hits0_rows = c((total_rows-dim0$nrow-1):(total_rows-1)))
+}
+
+make_screen_summary <- function(path_to_data, screen_name, hits_filtered, ncol_set) {
+  df_raw <- readRDS(path_to_data)
+  
+  hits <- hits_filtered %>% filter(screen == screen_name, tested == 1) 
+  
+  hits10 <- hits %>%  filter(value == 10 ) %>% .$dye  
+  hits5 <- hits %>% filter(value == 5 ) %>% .$dye
+  hits0 <- hits %>% filter(value == 0 ) %>% .$dye
+  
+  dims <- make_total_dims( get_dims(hits10), 
+                           get_dims(hits5), 
+                           get_dims(hits0) 
+                           )
+  
+    p10 <- df_raw %>%
+          filter(dye %in% hits10)  %>%
+          unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+          facet_wrap_two_conc("Hits", ncol_set)
+
+    p5 <- df_raw %>%
+          filter(dye %in% hits5)  %>%
+          unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+          facet_wrap_two_conc("Protein sensitive, not a hit", ncol_set)
+
+    p0 <- df_raw %>%
+          filter(dye %in% hits0)  %>%
+          unite("well_channel_type", c(well, channel, type), remove = FALSE) %>%
+          facet_wrap_two_conc("Not a hit", ncol_set)
+
+pdf_name <- paste0("output_ignore/individual_processed_screens/hits_sorted/", screen_name, "_hits_sorted.pdf")
+pdf(pdf_name, height= dims$total_rows+4, width = dims$total_cols+3)
+grid.newpage()
+pushViewport(viewport(layout = grid.layout(dims$total_rows+4, dims$total_cols)))
+#pushViewport(viewport(layout = grid.layout(3+3, dims$total_cols)))
+vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
+grid.text(paste0(" \n  ", screen_name), vp = vplayout(1,3), hjust = c(0,0,0), gp = gpar(fontsize = 35))
+
+grid.text("\n \n  Hit", vp = vplayout(2,3), hjust = c(0,0), gp = gpar(fontsize = 12))
+print(p10, vp = vplayout(dims$hits10_rows+1, dims$hits10_cols ))  # 1:number of rows in plot 1, 1:number of cols in this facet
+
+grid.text("  \n \n  Protein-sensitive, not a hit", vp = vplayout(dims$hits5_rows[[1]]+2-1,3), hjust = c(0,0,0), gp = gpar(fontsize = 12))
+print(p5, vp = vplayout(dims$hits5_rows+1+1, dims$hits5_cols)) # 1:number of rows in this facet, 1:number of cols in this facet
+
+grid.text("  \n \n  Not a hit", vp = vplayout(dims$hits0_rows[[1]]+3-1,3), hjust = c(0,0,0), gp = gpar(fontsize = 12))
+print(p0, vp = vplayout(dims$hits0_rows+2+1, dims$hits0_cols)) # 1:number of rows in this facet, 1:number of cols in this facet
+
+dev.off()
+    
+
+   
+}
+# processed_screens
+# test <- make_screen_summary(path_to_data = "output_ignore/individual_processed_screens/Exp0620--NPAS2_PAS-A-processed.rds", 
+#                             screen_name = "Exp0620--NPAS2_PAS-A",
+#                                 protein = "NPAS2_PAS-A", 
+#                                 hits_filtered = hits_filtered, 
+#                                 ncol_set = 15)
+ screen_paths[[5]]
+test <- make_screen_summary(path_to_data = screen_paths[[5]], 
+                            screen_name = screen_names[[5]],
+                               # protein = "NPAS2_PAS-A", 
+                                hits_filtered = hits_filtered, 
+                                ncol_set = 15)
+
+map2(screen_paths,  screen_names, make_screen_summary, hits_filtered = hits_filtered,  ncol_set = 15 )
+```
+
+```{r}
+paste_second <- function( pattern_2 , pattern_1) {
+  paste0(pattern_1, pattern_2 )
+}
+
+remove_screens <- c("Ds00009--0p01_TritonX100_in_P1", "Ds00011--Tau_P301S", "Exp0618--OLF", "Exp0707--DDM_buffer", "Exp0729--Tau_mi_diamond_10uM", "Exp0730--Tau_ms_diamond", "Exp0734--Tau_mi_diamond_1uM")
+processed_screens <- c(
+#"Ds00009--0p01_TritonX100_in_P1-processed.rds",
+"Ds00010--Hsp72_SBD-processed.rds",
+#"Ds00011--Tau_P301S-processed.rds",
+"Exp0468--eIF2B_no_ISIB-processed.rds",
+"Exp0469--eIF2B_with_ISRIB-processed.rds",
+"Exp0486--Jdomain-processed.rds",
+"Exp0497--Hsp60-processed.rds",
+"Exp0503--FKBP12-processed.rds",
+"Exp0507--Hsc70-processed.rds",
+"Exp0521--NHR23LBD-processed.rds",
+"Exp0535--free_aas_mix1_G-processed.rds",
+"Exp0535--free_aas_mix2_CMLRG-processed.rds",
+"Exp0535--free_aas_mix3_DESNQ-processed.rds",
+"Exp0535--free_aas_mix4_AVILP-processed.rds",
+"Exp0535--free_aas_mix5_FYWTH-processed.rds",
+"Exp0595--ACD_domain_protein6-processed.rds",
+"Exp0596--H104-FL-B5-pre-inc_protein5-processed.rds",
+"Exp0598--FL-B5-pre-inc_protein2-processed.rds",
+"Exp0610--B5_with_zinc-processed.rds",
+"Exp0615--BSA-processed.rds",
+"Exp0616--FKBP12-processed.rds",
+#"Exp0618--OLF-processed.rds",
+"Exp0619--PPIE-processed.rds",
+"Exp0620--NPAS2_PAS-A-processed.rds",
+"Exp0621--PER2_PAS-AB_wt-processed.rds",
+"Exp0622--CLOCK_PASB_W362A-processed.rds",
+"Exp0623--CP_BMAL1_PASB_W427A-processed.rds",
+"Exp0624--HisPER2_AB_I324N-processed.rds",
+"Exp0625--CP581_CBPKIX-processed.rds",
+"Exp0626--CP547_p300_KIX-processed.rds",
+"Exp0627--HisSUMO-processed.rds",
+"Exp0628--Hsp10-processed.rds",
+"Exp0629--HisGB1-processed.rds",
+"Exp0630--Hsp60-processed.rds",
+"Exp0650--His_NusA-processed.rds",
+"Exp0671--GS_WT-processed.rds",
+"Exp0672--GS_R341C-processed.rds",
+"Exp0673--GS_324S-processed.rds",
+"Exp0674--GS_324C-processed.rds",
+"Exp0701--B5-pre-inc_phosphomim_protein_4-processed.rds",
+#"Exp0707--DDM_buffer-processed.rds",
+"Exp0710--Nucleosome-processed.rds",
+"Exp0723--Retinoic_acid_receptor_alpha-processed.rds",
+"Exp0727--Snf2h_dye_screen-processed.rds",
+#"Exp0729--Tau_mi_diamond_10uM-processed.rds",
+#"Exp0730--Tau_ms_diamond-processed.rds",
+"Exp0731--OGlcNacTransferase-processed.rds",
+"Exp0732--Widom_601_DNA-processed.rds")
+#"Exp0734--Tau_mi_diamond_1uM-processed.rds") 
+
+screen_paths <- processed_screens %>%
+ map(paste_second,  "output_ignore/individual_processed_screens/") %>%
+ unlist() %>%
+ as.vector()
+
+screen_names <- processed_screens %>%
+  map(gsub, pattern = "-processed.rds", replacement = "") %>%
+  unlist() %>%
+  as.vector()
+
+screen_names
+
+```
+
+
+```{r}
+dims <- test$dims
+p10 <- test$p10
+p5 <- test$p5
+p0 <- test$p0
+
+screen_name <- "Exp0521--NHR23LBD"
+pdf_name <- paste0(screen_name, "_hit_definitions.pdf")
+pdf(pdf_name, height= dims$total_rows+4, width = dims$total_cols+3)
+grid.newpage()
+pushViewport(viewport(layout = grid.layout(dims$total_rows+4, dims$total_cols)))
+#pushViewport(viewport(layout = grid.layout(3+3, dims$total_cols)))
+vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
+grid.text(paste0(" \n  ", screen_name), vp = vplayout(1,3), hjust = c(0,0,0), gp = gpar(fontsize = 20))
+grid.text("\n \n  Hit", vp = vplayout(2,3), hjust = c(0,0), gp = gpar(fontsize = 12))
+print(p10, vp = vplayout(dims$hits10_rows+1, dims$hits10_cols ))  # 1:number of rows in plot 1, 1:number of cols in this facet
+grid.text("  \n \n  Protein-sensitive, not a hit", vp = vplayout(dims$hits5_rows[[1]]+2-1,3), hjust = c(0,0,0), gp = gpar(fontsize = 12))
+print(p5, vp = vplayout(dims$hits5_rows+1+1, dims$hits5_cols)) # 1:number of rows in this facet, 1:number of cols in this facet
+grid.text("  \n \n  Not a hit", vp = vplayout(dims$hits0_rows[[1]]+3-1,3), hjust = c(0,0,0), gp = gpar(fontsize = 12))
+print(p0, vp = vplayout(dims$hits0_rows+2+1, dims$hits0_cols)) # 1:number of rows in this facet, 1:number of cols in this facet
+dev.off()
+
+```
+```{r}
+# push the same viewport several times
+grid.newpage()
+vp <- viewport(width=0.5, height=0.5)
+pushViewport(vp)
+#grid.rect(gp=gpar(col="blue"))
+grid.text("Quarter of the device",
+  y=unit(1, "npc") - unit(1, "lines"), gp=gpar(col="blue"))
+grid.text("Top-level viewport",
+  y=unit(1, "npc") - unit(1, "lines"), gp=gpar(col="grey"))
+
+```
+
+```{r}
+dim10 <- test[[1]]
+dim5 <- test[[2]]
+dim0 <- test[[3]]
+
+make_total_dims <- function( dim10, dim5, dim0 ) {
+  total_rows <- dim10$nrow + dim5$nrow + dim0$nrow
+  ncols <- max( c(dim10$ncol, dim5$ncol, dim0$ncol))
+  
+  list(total_rows = total_rows, 
+       total_cols = ncols,
+       hits10_cols = c(1:dim10$ncol),
+       hits10_rows = c(1:dim10$nrow),
+       
+       hits5_cols = c(1:dim5$ncol),
+       hits5_rows = c((1+dim10$nrow):dim5$nrow),
+       
+       hits0_cols = c(1,dim0$ncol),
+       hit10_rows = c((total_rows-dim0$nrow):total_rows))
+}
+
+make_total_dims( dim10, dim5, dim0 )
+
+```
+
+```{r}
+  hits <- hits_filtered %>%
+          filter(screen == "Exp0620--NPAS2_PAS-A",
+                 tested == 1) %>%
+  filter(value == 10)
+  hits
+```
+
+
+
+
+
+
+
 ```{r}
 dsfworld_default <- theme( # adapted from free amino acids hit call
   text = element_text(size = 10),
@@ -156,6 +460,8 @@ facet_wrap_hits <- function(df_melt, title) {
   p # return the plot
 }
 ```
+
+
 ```{r}
 # try with NHR23LBD and with Exp0650--His_NusA
 NHR23LBD <- readRDS("output_ignore/individual_processed_screens/Exp0521--NHR23LBD-processed.rds") # has two concentrations per dye
