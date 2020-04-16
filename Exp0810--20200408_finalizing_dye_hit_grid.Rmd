@@ -14,14 +14,14 @@ library(phytools) # used to create the hierarchical clustering graph, and define
 library(tidyverse)
 ```
 
-First, need to re-do the hierarchichal clustering on chemminer to include the three AW dyes 
-```{r}
-# https://chemminetools.ucr.edu/tools/list_jobs/
-# OpenBabel descriptors also calculated and downloaded: 
-chem_desc <- read_csv("output_ignore/dye_descriptors/Exp0810--20200408_open_babel_descriptors.csv") %>%
-  pivot_longer(-cid, names_to = "desc", values_to = "value") %>%
-  dplyr::rename(dye =  "cid")
+Oringinally, I was going to re-do the hierarchical clustering to include the AW dyes. 
+But they clustered strangely (probably need to figure out what was different in th clustering method)
+So I went forward without the AW dyes, since there were only three, and they had only been screened against the 715 proteins.
+Likely we will put them back in after the final clustering and likely a bit more protein screening.
+But this code should work with those updates. 
 
+Read in the hierarchical clustering of the dyes from https://chemminetools.ucr.edu/tools/list_jobs/
+```{r}
 clean_dye_names <- function( vec ) {
   vec %>%
     gsub( "S.O.500X|SO500X", "SO5X", . ) %>% # low concentration SYPRO
@@ -30,19 +30,24 @@ clean_dye_names <- function( vec ) {
 }
 
 # these dyes include all of the ones for which we have both screening data and structures
-#dye_order <- readRDS("output_ignore/dye_descriptors/Exp0810--dye_order.rds")
-tre_1 <- read.newick(file = "output_ignore/dye_descriptors/clusteringtree (4).tre")
-dye_order <- tre_1$tip.label%>% clean_dye_names() %>% factor(. , levels = .) 
+dye_order <- read.newick(file = "output_ignore/dye_descriptors/clusteringtree (4).tre")$tip.label %>%
+              clean_dye_names() %>% 
+              factor(. , levels = .) %>%
+              tibble(dye_order = . ,
+                     order_numeric = c(1:length(dye_order))
+                     )
 
-dye_order <- tibble(
-              dye_order = dye_order,
-              order_numeric = c(1:length(dye_order))
-            )
+dye_order %>% head()
+```
 
+Read in the dye hit grid. 
+In this hit grid, the dyes which were not screened are not distinguished from ones which were screend but not a hit. Differentiating not screened and screened,not hit happens in the next code chunk. 
+```{r}
+# these are screens which we have processed but aren't going to put in the published data for various reasons.
 remove_screens <- c("Ds00009--0p01_TritonX100_in_P1", "Ds00011--Tau_P301S", "Exp0618--OLF", "Exp0707--DDM_buffer", "Exp0729--Tau_mi_diamond_10uM", "Exp0730--Tau_ms_diamond", "Exp0734--Tau_mi_diamond_1uM") # screens which we aren't going to consider in the paper
 
 # read in and label all dye hits
-dye_hits <- read_csv("output_ignore/hit_definitions/Exp0810--20200404_all_screen_hits_v3.csv") %>%
+dye_hits_raw <- read_csv("output_ignore/hit_definitions/Exp0810--20200404_all_screen_hits_v3.csv") %>%
             pivot_longer(-c(comments, dye, `buffer too bad?`, reject_buffer, maxed_out, protein_sensitive), names_to = "screen", values_to = "value")  %>%
             mutate(dye_f = factor(.$dye, levels = dye_order$dye_order )) %>%
             filter(! screen %in% remove_screens) %>%
@@ -53,21 +58,19 @@ dye_hits <- read_csv("output_ignore/hit_definitions/Exp0810--20200404_all_screen
             filter(! dye %in% c("SO5X", "SO50X")) %>% # keep only the "SYPRO" definition, which combines any SYPRO concentration
             filter(! dye %in% c("DMSO", "AW131", "AW132", "AW134"))# remove the DMSO and SYPRO columns
 
-head(dye_hits)
-# read in the layouts to determine which dyes were tested in each screen
-dye_hits %>%
+dye_hits_raw %>% head()
+
+# quick plot to make sure the results look ok
+dye_hits_raw %>%
   ggplot(aes(x = screen, y = dye_f, fill = value), color = NA) +
   geom_tile() +
   theme_bw() +
-  #scale_fill_viridis_c()+
- # dsfworld_default +
-  coord_flip() -> p
-p
+  coord_flip() 
 ```
+
+Determine which dyes were screened against each protein
 ```{r}
 layouts_per_screen <- read_csv("output_ignore/hit_definitions/Exp0810--layouts_to_screens.csv")
-layouts_per_screen
-dyes_in_screenx <- read_csv("output_ignore/hit_definitions/Exp0810--all_layouts.csv")
 
 dyes_in_screen <- read_csv("output_ignore/hit_definitions/Exp0810--all_layouts.csv") %>%
                     pivot_longer(-plate, names_to = "column", values_to = "dye") %>%
@@ -86,34 +89,29 @@ dyes_in_screen <- read_csv("output_ignore/hit_definitions/Exp0810--all_layouts.c
                     pivot_wider(id_cols = screen, names_from = dye, values_from = tested_dye) %>%
                     mutate(SYPRO = rep(1, times = nrow(.))) %>% # SYPRO was always screened %>%
                     pivot_longer(-screen, names_to = "dye", values_to = "tested",values_drop_na = FALSE)
+#dyes_in_screen %>% head()
 
-dyes_in_screen %>% filter(screen == "Exp0521--NHR23LBD")
+# create the final hit grid, which includes information on which dyes were not tested against which proteins 
+dye_hits <- dyes_in_screen %>%
+              full_join(dye_hits_raw, by = c("screen", "dye")) %>%
+              filter( tested == 1 ) %>%
+              filter( screen %in% dye_hits$screen)
 
-dyes_in_screen %>%
-  full_join(dye_hits, by = c("screen", "dye")) %>%
-  filter( tested == 1 ) %>%
-  filter( screen %in% dye_hits$screen) %>%
-  ggplot(aes(x = screen, y = dye_f, fill = value), color = NA) +
-  geom_tile() +
-  theme_bw() +
-  #scale_fill_viridis_c()+
- # dsfworld_default +
-  coord_flip()
+# take a quick look at this final hit grid. we'll make the final heatmap in a different notebook.
+ggplot(dye_hits, aes(x = screen, y = dye_f, fill = value), color = NA) +
+              geom_tile() +
+              theme_bw() +
+              coord_flip()
 
+# when we got to make the final heatmap, though, this is a useful guide for combining with the frequency data
 # http://www.sthda.com/english/wiki/wiki.php?id_contents=7930
 # the necessary link to add the histogramssing grid arrange
 # see within it
 # # Marginal histogram plot
 # ggMarginal(sp2 + theme_gray(), type = "histogram",
 #            fill = "steelblue", col = "darkblue")
-```
 
-Plot all the hits, and all the not-hits, for each protein
-Probably should do this as a grob?
-
-```{r}
-# here are some examples from  http://www.sthda.com/english/wiki/wiki.php?id_contents=7930
-
+write_rds(dye_hits, "output_ignore/hit_definitions/Exp0810--20200416_dye_hits_before_recall.rds")
 ```
 
 ```{r}
